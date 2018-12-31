@@ -1,5 +1,8 @@
 <?php
-	// PDO wrapper class 1.7
+	// PDO wrapper class 1.9.1
+	// 2018-12-31 - update, Enten id eller conditions skal være angivet
+	// 2018-12-28 -  && $orderField != $column tilføjet til get_distinct
+	// 2018-12-27  Fejlrettelse, do_query
 	// 2018-12-24 - get_rows_join_multi, default order + joinType, returner resultat fra do_query hvis SELECT
 	//				function exists
 	// 2018-12-20 - get_row_count_multi tilføjet
@@ -127,6 +130,10 @@
 			}
 
 			public function update($table, $id, $row, $conditions = null, $indexKey = "id") {
+				if(!$id && !$conditions) {
+					// Enten id eller conditions skal være angivet
+					return false;
+				}
 				$fieldNames = $this->field_names($table);
 				if(empty($fieldNames)) {
 					$this->error = "Couldn't fetch the columns for the table {$table}";
@@ -287,7 +294,7 @@
 					$orderFieldsArray = explode(" ", $order);
 					$extraFields = [];
 					foreach($orderFieldsArray as $orderField) {
-						if(!in_array(strtoupper($orderField), ["ASC", "DESC"])) {
+						if(!in_array(strtoupper($orderField), ["ASC", "DESC"]) && $orderField != $column) {
 							$extraFields[] = $orderField;
 						}
 					}
@@ -341,10 +348,11 @@
 
 			public function do_query($query) {
 				$this->query($query);
-				if(stristr($this->sql, "SELECT") !== -1) {
+				if(stripos($this->sql, "SELECT") !== false) {
+					// echo "Her: |".stripos($this->sql, "SELECT")."|";
 					return($this->resultset());
 				}
-				return($this->execute());
+				$this->execute();
 			}
 
 			public function get_rows_group_by($table, $groupBy = null, $conditions = null, $select = "*", $order = null, $limit = null) {
