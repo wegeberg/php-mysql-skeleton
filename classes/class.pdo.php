@@ -1,10 +1,10 @@
 <?php
-	// PDO wrapper class 1.9.1
+	// PDO wrapper class 1.9.12
+	// 2019-01-07 - function increment
 	// 2018-12-31 - update, Enten id eller conditions skal være angivet
-	// 2018-12-28 -  && $orderField != $column tilføjet til get_distinct
-	// 2018-12-27  Fejlrettelse, do_query
+	// 2018-12-28 - && $orderField != $column tilføjet til get_distinct
+	// 2018-12-27 - Fejlrettelse, do_query
 	// 2018-12-24 - get_rows_join_multi, default order + joinType, returner resultat fra do_query hvis SELECT
-	//				function exists
 	// 2018-12-20 - get_row_count_multi tilføjet
 	// 2018-12-17 - do_query returnerer nu resultatet
   	// 2018-12-14 - get_rows_join_multi: default værdier for $select og $order
@@ -344,6 +344,20 @@
 				if($limit) $query .= "LIMIT {$limit} ";
 				$this->query($query);
 				return($this->resultset());
+			}
+
+			public function increment($table, $id, $conditions, $field, $increment = 1) {
+				$id = intval($id);
+				if($id > 0) {
+					$conditionsString = "id = {$id}";
+				} else if($conditions) {
+					$conditionsString = $this->make_conditions($conditions);
+				} else {
+					return false;
+				}
+				$query = "UPDATE {$table} SET {$field} = {$field} + 1 WHERE {$conditionsString} LIMIT 1";
+				$this->query($query);
+				return($this->execute());
 			}
 
 			public function do_query($query) {

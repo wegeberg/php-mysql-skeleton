@@ -1,22 +1,44 @@
 // JavaScript Document
+// JavaScript Document
+function underkategorierSelect(hovedkategoriId, name, selectedId, target, callback) {
+	'use strict';
+	target = target || 'underkategorier-select';
+	name = name || 'underkategori_id';
+		callback = callback || null;
+	selectedId = selectedId || 0;
+	$.post(
+		'/scripts/underkategorierSelect.php',
+		{
+			hovedkategoriId: hovedkategoriId,
+			name: name,
+			selectedId: selectedId,
+		},
+		function(data) {
+			$(`#${target}`).html(data);
+			if(callback) {
+					callback();
+			}
+		}
+	)
+}
 function editTextField(element) {
-    "use strict";
-    const container = element.data("container") || "";
-    $.post(
-        "/scripts/editTextField.php",
-        {
-            rowId:      element.data("row-id") || 0,
-            fieldName:	element.data("field-name") || "",
-            tableName:	element.data("table-name") || "",
-            strong:     element.data("strong") || "0",
-            container:  container,
-        },
-        function(data) {
-            if(data.length > 0) {
-                $("#" + container).html(data);
-            }
-        }
-    );
+	"use strict";
+	const container = element.data("container") || "";
+	$.post(
+			"/scripts/editTextField.php",
+			{
+					rowId:      element.data("row-id") || 0,
+					fieldName:	element.data("field-name") || "",
+					tableName:	element.data("table-name") || "",
+					strong:     element.data("strong") || "0",
+					container:  container
+			},
+			function(data) {
+					if(data.length > 0) {
+							$("#" + container).html(data);
+					}
+			}
+	);
 }
 function hjemmeside(url) {
     "use strict";
@@ -28,6 +50,18 @@ function hjemmeside(url) {
         return retur;
     }
     return "http://" + retur;
+}
+function underkategoriSelect(hovedkategoriId) {
+    "use strict";
+    $.post(
+        "/scripts/underkategoriSelect.php",
+        {
+            hovedkategoriId: hovedkategoriId,
+        },
+        function(data) {
+            $("#underkategori-select-div").html(data);
+        }
+    );
 }
 function deleteRecord(table, id, target, bevar) {
 	"use strict";
@@ -61,14 +95,17 @@ function hentBynavn(postnr, target) {
 	);
 }
 function getCookie(name) {
-    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+	"use strict";
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
     return v ? v[2] : null;
 }
 function setCookie(name, value, days) {
-    var d = new Date;
+    "use strict";
+    const d = new Date;
     d.setTime(d.getTime() + 24*60*60*1000*days);
     document.cookie = name + "=" + value + ";path=/;expires=" + d.toGMTString();
 }
 function deleteCookie(name) {
-    setCookie(name, "", -1);
+    "use strict";
+    setCookie(name, '', -1);
 }
