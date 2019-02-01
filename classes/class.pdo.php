@@ -1,5 +1,6 @@
 <?php
-	// PDO wrapper class 1.9.12
+	// PDO wrapper class 1.9.3
+	// 2019-02-01 - get_row_count returnerer integer
 	// 2019-01-07 - function increment
 	// 2018-12-31 - update, Enten id eller conditions skal være angivet
 	// 2018-12-28 - && $orderField != $column tilføjet til get_distinct
@@ -314,7 +315,7 @@
 				$query =
 					"SELECT COUNT({$column}) FROM `{$table}` WHERE {$conditionsString}";
 					$this->query($query);
-					return($this->single(PDO::FETCH_COLUMN));
+					return(intval($this->single(PDO::FETCH_COLUMN)));
 			}
 
 			public function get_distinct_row_count($table, $conditions = null, $column = "id") {
@@ -346,7 +347,7 @@
 				return($this->resultset());
 			}
 
-			public function increment($table, $id, $conditions, $field, $increment = 1) {
+			public function increment($table, $id = 0, $field, $conditions = null, $increment = 1) {
 				$id = intval($id);
 				if($id > 0) {
 					$conditionsString = "id = {$id}";
@@ -552,10 +553,10 @@
 
 			private function log_db_error($error, $class) {
 				$debugstring = date("Y-m-d H:i:s").' '
-					.$class."\n".$_SERVER['REQUEST_URI']
+					.$class."\n".(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : "")
 					."\n".$error."\n"
 					.$this->sql."\n"
-					.$_SERVER['REQUEST_URI']."\n\n";
+					.(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : "")."\n\n";
 				if(defined(DISPLAY_DEBUG) && DISPLAY_DEBUG) {
 					echo str_replace("\n", "<br />", $debugstring);
 				} elseif(defined(ERROR_LOGFILE)) {
@@ -567,8 +568,8 @@
 			}
 
 			function log_debug($class = "Log") {
-				$debugstring = date("Y-m-d H:i:s").' '.$class."\n".$_SERVER['REQUEST_URI']
-					."\n".$this->sql."\n".$_SERVER['REQUEST_URI']
+				$debugstring = date("Y-m-d H:i:s").' '.$class."\n".(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : "")
+					."\n".$this->sql."\n".(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : "")
 					."\n\n";
 				if(DEBUG_LOGFILE) {
 					$fh = fopen(DEBUG_LOGFILE,"a");
