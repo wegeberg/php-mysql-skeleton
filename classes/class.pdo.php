@@ -1,5 +1,6 @@
 <?php
-	// PDO wrapper class 1.9.3
+	// PDO wrapper class 1.9.4
+	// 2019-03-19 - get_distinct, order part
 	// 2019-02-01 - get_row_count returnerer integer
 	// 2019-01-07 - function increment
 	// 2018-12-31 - update, Enten id eller conditions skal være angivet
@@ -41,7 +42,7 @@
 					.";dbname=".($dbName ? $dbName : DB_NAME)
 					.";charset=".DBCHARSET;
 				try {
-					$this->dbh = new PDO($this->dsn,($dbUser ? $dbUser : DB_USER), ($dbPass ? $dbPass : DB_PASS),$this->options);
+					$this->dbh = new PDO($this->dsn, ($dbUser ? $dbUser : DB_USER), ($dbPass ? $dbPass : DB_PASS), $this->options);
 				}
 				catch(PDOException $e) {
 					$this->error = $e->getMessage();
@@ -267,15 +268,12 @@
 				} else if($conditions) {
 					$conditionsString = $this->make_conditions($conditions);
 				} else {
-					return [];
+					$conditionsString = "1";
 				}
 				$query =
 					"SELECT {$selectString}
 					FROM {$table}
 					WHERE {$conditionsString} ";
-
-//				echo $query;
-
 				if($order) $query .= "ORDER BY {$order} ";
 				$this->query($query);
 				return($this->single());
@@ -283,13 +281,17 @@
 
 			public function get_distinct($table, $column = "id", $order = null, $conditions = null, $limit = null) {
 				$conditionsString = $this->make_conditions($conditions);
+				// echo $conditionsString;
+				// exit;
 				if(!$order) {
 					$query =
 						"SELECT DISTINCT($column)
 						FROM {$table}
 						WHERE {$conditionsString} ";
-						if($order) $query .= "ORDER BY {$order} ";
+						"ORDER BY {$column} ";
 						if($limit) $query .= "LIMIT {$limit} ";
+						// echo $query;
+						// exit;
 				} else {
 					// tilføj felter i order til selected fields
 					$orderFieldsArray = explode(" ", $order);
@@ -303,8 +305,10 @@
 						"SELECT DISTINCT($column)".(!empty($extraFields) ? ", ".implode(", ", $extraFields)." " : "").
 						"FROM {$table}
 						WHERE {$conditionsString} ";
-						if($order) $query .= "ORDER BY {$order} ";
+						"ORDER BY {$order} ";
 						if($limit) $query .= "LIMIT {$limit} ";
+					// echo $query;
+					// exit;
 				}
 				$this->query($query);
 				return($this->resultset(PDO::FETCH_COLUMN));
@@ -443,7 +447,7 @@
 					$this->get_rows_join_multi([$table1, $table2], [$table1Idfield, $table2Idfield], $conditions, $select, $order, $limit)
 				);
 			}
-			
+
 			public function get_row_count_multi($tables, $idFields, $conditions, $select = null) {
 				if(!is_array($tables) || !is_array($idFields)) {
 					$this->error = "The first two parameters MUST be arrays!";
@@ -456,7 +460,7 @@
 					return(0);
 				}
 				if(!$select) {
-						$select = "{$tables[0]}.*";
+					$select = "{$tables[0]}.*";
 				}
 				$selectString = $this->make_select($select);
 				$conditionsString = $this->make_conditions($conditions);
@@ -471,6 +475,42 @@
 					WHERE {$conditionsString} ";
 				$this->query($query);
 				return($this->single(PDO::FETCH_COLUMN));
+			}
+			
+			public function get_row_multi($tables, $idFields, $id = 0, $select = null, $conditions = null, $order = null, $joinType = "INNER") {
+				if(!is_array($tables) || !is_array($idFields)) {
+					$this->error = "The first two parameters MUST be arrays!";
+					$this->log_db_error($this->error, "Warning");
+					return(false);
+				}
+				if(empty($tables) || empty($idFields) || count($tables) != count($idFields)) {
+					$this->error = "The two arrays need to be of equal length and not empty!";
+					$this->log_db_error($this->error, "Warning");
+					return(false);
+				}
+				if(!$select) {
+					$select = "{$tables[0]}.*";
+				}
+				$selectString = $this->make_select($select);
+				if($id > 0) {
+					$conditionsString = "{$tables[0]}.id = {$id}";
+				} else if($conditions) {
+					$conditionsString = $this->make_conditions($conditions);
+				} else {
+					$conditionsString = "1";
+				}
+				$joinString = "";
+				for($i = 1; $i < count($tables); $i++) {
+					$joinString .= "{$joinType} JOIN `".$tables[$i]."` ON `".$tables[0]."`.`{$idFields[0]}` = `".$tables[$i]."`.`".$idFields[$i]."` ";
+				}
+				$query =
+					"SELECT {$selectString}
+					FROM `{$tables[0]}`
+					{$joinString}
+					WHERE {$conditionsString} ";
+				if($order) $query .= "ORDER BY {$order} ";
+				$this->query($query);
+				return($this->single());
 			}
 			
 			public function get_rows_join_multi($tables, $idFields, $conditions, $select = null, $order = null, $limit = null, $joinType = "INNER") {

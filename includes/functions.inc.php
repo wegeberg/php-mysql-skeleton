@@ -5,105 +5,273 @@ if(!function_exists("ikon")) {
 		return "<i class=\"{$class} {$extraClass}\"></i>&nbsp;";
 	}
 }
+if (!function_exists("asyncPhpCommand")) {
+    function asyncPhpCommand($filepath, $args = null, $logfile = null) {
+        if($args) {
+            $cmd = "/usr/bin/nohup php {$filepath} ".escapeshellarg($args)." > ".($logfile ? $logfile : "/dev/null")." 2>&1 &";
+        } else {
+            $cmd = "/usr/bin/nohup php {$filepath} >  ".($logfile ? $logfile : "/dev/null")." 2>&1 &";
+        }
+        shell_exec($cmd);
+        return $cmd;
+    }
+}
+if (!function_exists("getShellArgs")) {
+    function getShellArgs($args) {
+        // I formatet script.php a=2 b=5 c=6
+        $antalArgs = count($args);
+        if(!is_array($args) || $antalArgs < 3) {
+            // Der skal være mindst tre args: scriptnavnet + et variabel-sæt
+            return [];
+        }
+        $retur = [];
+        for($i = 1; $i < $antalArgs; $i++) {
+            $split = explode("=", $args[$i]);
+            if(count($split == 2)) {
+                $retur[$split[0]] = $split[1];
+            }
+        }
+        return $retur;
+    }
+}    
 /* DIVERSE SLUT */
 
 
 /* DATABASE */
 if (!function_exists("createSlug")) {
-	function createSlug($text) {
-		$text = str_replace("Å", "aa", $text);
-		$text = str_replace("Ø", "oe", $text);
-		$text = str_replace("å", "aa", $text);
-		$text = str_replace("ø", "oe", $text);
-		$text = preg_replace("~[^\pL\d]+~u", "-", $text);
-		$text = iconv("utf-8", "us-ascii//TRANSLIT", $text);
-		$text = preg_replace("~[^-\w]+~", "", $text);
-		$text = trim($text, "-");
-		$text = preg_replace("~-+~", "-", $text);
-		$text = strtolower($text);
-		if (empty($text)) {
-			return "n-a";
-		}
-		return $text;
-	}
+    function createSlug($text) {
+        $text = str_replace("Å", "aa", $text);
+        $text = str_replace("Ø", "oe", $text);
+        $text = str_replace("å", "aa", $text);
+        $text = str_replace("ø", "oe", $text);
+        // replace non letter or digits by -
+        $text = preg_replace("~[^\pL\d]+~u", "-", $text);
+        // transliterate
+        $text = iconv("utf-8", "us-ascii//TRANSLIT", $text);
+        // remove unwanted characters
+        $text = preg_replace("~[^-\w]+~", "", $text);
+        // trim
+        $text = trim($text, "-");
+        // remove duplicate -
+        $text = preg_replace("~-+~", "-", $text);
+        // lowercase
+        $text = strtolower($text);
+        if (empty($text)) {
+            return "n-a";
+        }
+        return $text;
+    }
 }
 if(!function_exists("saveSlug")) {
-	function saveSlug($string, $table, $id, &$db) {
-		if(!$id || !$table) {
-			return "-- FEJL I SAVESLUG --";
-		}
-		$createdSlug = createSlug($string);
-		$slugEksisterer = $db->get_row_count($table, "slug LIKE '{$createdSlug}' AND id <> {$id}");
-		if($slugEksisterer) {
-			$i = 1;
-			$tmpSlug = $createdSlug."-{$i}";
-			$raekke = $db->get_row($table, $id);
-			while($db->get_row_count($table, "slug LIKE '{$tmpSlug}' AND id <> {$raekke["id"]}") > 0) {
-				$devMsgs[] =$db->sql;
-				$i++;
-				$tmpSlug = $createdSlug."-{$i}";
-				if($i > 20) {
-					break;
-				}
-			}
-			$createdSlug = $tmpSlug;
-		}
-		$db->update($table, $id, ["slug"=>$createdSlug]);
-		$eksisterendeISlugs = $db->get_row("slugs", 0, "slug LIKE '{$createdSlug}' AND tabel LIKE '{$table}' AND objekt_id = {$id}");
-		if(empty($eksisterendeISlugs)) {
-			$db->insert("slugs", [
-				"tabel"			=> $table,
-				"objekt_id"		=> $id,
-				"slug"			=> $createdSlug
-			]);
-		} else {
-			$db->update("slugs", $eksisterendeISlugs["id"], ["slug"=>$createdSlug]);
-		}
-		return $createdSlug;
-	}
+    function saveSlug($string, $table, $id, &$db, $showDebug = false) {
+        $devMsgs = [];
+        if(!$id || !$table) {
+            return "-- FEJL I SAVESLUG --";
+        }
+        $createdSlug = createSlug($string);
+        if(strlen($createdSlug) > 145) {
+            $createdSlug = substr($createdSlug, 0, 145);
+        }
+        $i = 1;
+        while($db->get_row_count("slugs", "slug LIKE '{$createdSlug}' AND tabel LIKE '{$table}' AND id <> {$id}")) {
+            if(!$db->get_row_count("slugs", "slug LIKE '".$createdSlug."-".(string) $i."'")) {
+                $createdSlug = $createdSlug."-".(string) $i;
+                break;
+            }
+            $devMsgs[] = $db->sql;
+            $i++;
+        }
+        if($table && $id) {
+            $db->update($table, $id, ["slug"=>$createdSlug]);
+            $devMsgs[] = $db->sql;
+        }
+        $eksisterendeSlug = $db->get_row("slugs", 0, "tabel LIKE '{$table}' AND objekt_id = {$id}");
+        $devMsgs[] = $db->sql;
+        if(!empty($eksisterendeSlug)) {
+            $db->update("slugs", $eksisterendeSlug["id"], [
+                "slug"		=> $createdSlug,
+                "objekt_id"	=> $id,
+                "tabel"		=> $table
+            ]);
+        } else {
+            $db->insert("slugs", [
+                "slug"		=> $createdSlug,
+                "objekt_id"	=> $id,
+                "tabel"		=> $table
+            ]);
+        }
+        $devMsgs[] = $db->sql;
+        if($showDebug && !empty($devMsgs)) {
+            echo implode("<br />", $devMsgs);
+        }
+        return $createdSlug;
+    }
 }
 /* DATABASE SLUT */
 
-
-/* UTILITIES */
-if(!function_exists('print_recursive')) {
-	function print_recursive($data, $indent = 0, $linebreak = "<br />"){
-		if(is_array($data)){
-			foreach($data as $k => $v) {
-				if (is_array($v)){
-					for ($i = 0; $i < $indent * 10; $i++){
-						echo "&nbsp;";
-					}
-					echo "{$k}: {$linebreak}";
-					print_recursive($v, $indent + 1);
-				} else {
-					for ($i = 0; $i < $indent * 10; $i++){
-						echo "&nbsp;";
-					}
-					echo "{$k}: $v{$linebreak}";
-				}
-			}
-		} else {
-			var_dump($data);
+/* FORM FIELDS */
+if(!function_exists("textarea")) {
+    function textarea($parameters) {
+        $defaults = [
+            "name"          => "",
+            "noLabel"       => false,
+            "noPlaceholder" => false,
+            "required"      => false,
+            "label"         => "",
+            "style"			=> "",
+            "formControl"   => true,
+            "rows"          => "5",
+            "disabled"      => false,
+        ];
+        $data = assign_defaults($parameters, $defaults);
+        $id = isset($data["id"]) ? $data["id"] : $data["name"];
+        $data = assign_defaults($parameters, $defaults);
+        $id = isset($data["id"]) ? $data["id"] : $data["name"];
+        $class = isset($data["class"]) ? classString($data["class"]) : "";
+        if($data["formControl"]) {
+            $class .= " form-control";
+        }
+        $retur = "<textarea id=\"{$id}\" name=\"{$data["name"]}\" class=\"{$class}\" ";
+        $retur .= $data["required"] ? "required " : "";
+        $retur .= $data["style"] ? "style=\"{$data["style"]}\" " : "";
+		if(!$data["noPlaceholder"] && ((isset($data["placeholder"]) && $data["placeholder"]) || (isset($data["name"]) && $data["name"]))) {
+			$retur .= ' placeholder="'.ucfirst(isset($data["placeholder"]) && $data["placeholder"] ? $data["placeholder"] : $data["name"]).'"';
 		}
+        $retur .= "rows=\"{$data["rows"]}\" ";
+		$retur .= $data["disabled"] ? " disabled" : "";
+        $retur .= ">";
+        $retur .= isset($data["value"]) ? htmlspecialchars($data["value"]) : "";
+        $retur .= "</textarea>";
+		if(!$data["noLabel"] && ($data["label"] || $data["name"])) {
+			$retur .= "<label for=\"{$data["name"]}\">".ucfirst($data["label"] ? $data["label"] : $data["name"])."</label>";
+		}
+        return $retur;
+    }
+}
+if(!function_exists("select")) {
+	function select($parameters) {
+        $showDebug = false;
+        $devMsgs = [];
+		$defaults = [
+			"name"			=> "",
+			"label"			=> null,
+			"selected"		=> null,
+			"style"			=> "",
+			"required"		=> false,
+			"options"		=> [],
+			"selected"		=> null,
+			"firstValue"	=> 0,
+			"firstText"		=> "",
+            "showFirst"		=> true,
+            "fullOptions"   => false,
+            "valueFields"   => ["navn"]
+		];
+		if(empty($parameters["options"])) {
+			return null;
+		}
+		$data = assign_defaults($parameters, $defaults);
+		$id = isset($data["id"]) ? $data["id"] : $data["name"];
+		// select åbning
+		$retur = "<select class=\"form-control"
+			.(isset($data["class"]) ? " {$data["class"]}" : "")
+			."\""
+			.($data["required"] ? " required" : "")
+			." name=\"{$data["name"]}\" id=\"{$id}\"";
+		if($data["style"]) {
+			$retur .= " style=\"{$data["style"]}\"";
+		}
+		if(isset($data["extras"]) && !empty($data["extras"]) && is_array($data["extras"])) {
+			foreach($data["extras"] as $key=> $val) {
+				$retur .= " {$key}=\"{$val}\"";
+			}
+		}
+		$retur .= ">\n";
+        // Options
+        if($data["showFirst"]) {
+            $retur .= "<option value=\"{$data["firstValue"]}\">";
+            $retur .=  "-- {$data["firstText"]} --";
+            $retur .= "</option>\n";
+        }
+        if($data["fullOptions"]) {
+            foreach($data["options"] as $row) {
+                $key = $row["id"];
+                $retur .= "<option value=\"{$key}\"";
+                $retur .= $data["selected"] != null && $data["selected"] == $key ? ' selected="selected"' : '';
+                $retur .= ">";
+                $values = [];
+                foreach($data["valueFields"] as $fieldname) {
+                    $values[] = $row[$fieldname];
+                }
+                $retur .= implode(", ", $values);
+                $retur .= "</option>\n";
+            }
+        } else {
+            foreach($data["options"] as $key=>$val) {
+                $retur .= "<option value=\"{$key}\"";
+                $retur .= $data["selected"] != null && $data["selected"] == $key ? ' selected="selected"' : '';
+                $retur .= ">";
+                $retur .= $val;
+                $retur .= "</option>\n";
+            }
+        }
+		// select lukning
+		$retur .="</select>";
+		if($data["label"]) {
+			$retur .= "\n<label for=\"{$id}\">{$data["label"]}</label>";
+        }
+        if($showDebug) {
+            $retur .= '<div class="alert alert-warning">';
+            $retur .= implode("<br />", $devMsgs);
+            $retur .= '</div>';
+        }
+		return $retur;
 	}
 }
-if(!function_exists("adressetekst")) {
-	function adressetekst($adresse, $separator = ",") {
-		if(!$adresse) return("");
-		$adressefelter = [];
-		if(isset($adresse["adresse1"]) && $adresse["adresse1"]) {
-			$adressefelter[] = $adresse["adresse1"];
+if(!function_exists("input_field")) {
+	function input_field($parameters) {
+        $defaults = [
+            "name"          => "",
+            "type"          => "text",
+            "noLabel"       => false,
+            "noPlaceholder" => false,
+            "required"      => false,
+            "label"         => "",
+            "style"			=> "",
+            "formControl"   => true,
+            "disabled"      => false,
+        ];
+        $data = assign_defaults($parameters, $defaults);
+        $id = isset($data["id"]) ? $data["id"] : $data["name"];
+        $classes = [];
+        if($data["formControl"]) {
+            $classes[] = "form-control";
+        }
+        if(isset($data["class"]) && $data["class"]) {
+            if(is_array($data["class"])) {
+                $classes = array_merge($classes, $data["class"]);
+            } else {
+                $classes = array_merge($classes, explode(" ", $data["class"]));
+            }
+        }
+        $class = !empty($classes) ? implode(" ", $classes) : "";
+		$retur = "<input class=\"{$class}\" type=\"{$data["type"]}\"".($data["required"] ? " required" : "")." name=\"{$data["name"]}\" id=\"{$id}\" value=\"".(isset($data["value"]) ? htmlspecialchars($data["value"]) : "")."\"";
+		if(!$data["noPlaceholder"] && ((isset($data["placeholder"]) && $data["placeholder"]) || (isset($data["name"]) && $data["name"]))) {
+			$retur .= ' placeholder="'.ucfirst(isset($data["placeholder"]) && $data["placeholder"] ? $data["placeholder"] : $data["name"]).'"';
 		}
-		if(isset($adresse["adresse2"]) && $adresse["adresse2"]) {
-			$adressefelter[] = $adresse["adresse2"];
+		if($data["style"]) {
+			$retur .= " style=\"{$data["style"]}\"";
 		}
-		if(isset($adresse["postnr"]) && $adresse["postnr"]) {
-			$adressefelter[] = $adresse["postnr"]." ".$adresse["bynavn"];
-		} elseif(isset($adresse["postnummer"]) && $adresse["postnummer"]) {
-			$adressefelter[] = $adresse["postnummer"]." ".$adresse["bynavn"];
+		$retur .= $data["disabled"] ? " disabled" : "";
+        if(isset($data["extras"]) && !empty($data["extras"]) && is_array($data["extras"])) {
+            foreach($data["extras"] as $key=> $val) {
+                $retur .= " {$key}=\"{$val}\"";
+            }
+        }
+		$retur .= " />";
+		if(!$data["noLabel"] && ($data["label"] || $data["name"])) {
+			$retur .= "<label for=\"{$data["name"]}\">".ucfirst($data["label"] ? $data["label"] : $data["name"])."</label>";
 		}
-		return(implode("{$separator} ", $adressefelter));
+		return($retur);
 	}
 }
 if(!function_exists("editable_container")) {
@@ -125,42 +293,57 @@ if(!function_exists("editable_container")) {
 		return $retur;
 	}
 }
-if(!function_exists("input_field")) {
-	function input_field($parameters) {
-		$defaults = [
-			"name"          => "",
-			"type"          => "text",
-			"noLabel"       => false,
-			"noPlaceholder" => false,
-			"required"      => false,
-			"label"         => "",
-			"style"         => ""
-		];
-		$data = assign_defaults($parameters, $defaults);
-		$id = isset($data["id"]) ? $data["id"] : $data["name"];
-		$retur = "<input class=\"form-control"
-			.(isset($data["class"]) ? " {$data["class"]}" : "")
-			."\" type=\"{$data["type"]}\""
-			.($data["required"] ? " required" : "")
-			." name=\"{$data["name"]}\" id=\"{$id}\" value=\""
-			.(isset($data["value"]) ? htmlspecialchars($data["value"], ENT_QUOTES, 'UTF-8', false) : "")
-			."\"";
-		if(!$data["noPlaceholder"] && ((isset($data["placeholder"]) && $data["placeholder"]) || (isset($data["name"]) && $data["name"]))) {
-			$retur .= ' placeholder="'.ucfirst(isset($data["placeholder"]) && $data["placeholder"] ? $data["placeholder"] : $data["name"]).'"';
-		}
-		if($data["style"]) {
-			$retur .= " style=\"{$data["style"]}\"";
-		}
-		if(isset($data["extras"]) && !empty($data["extras"]) && is_array($data["extras"])) {
-				foreach($data["extras"] as $key=> $val) {
-					$retur .= " {$key}=\"{$val}\"";
+/* FORM FIELDS */
+
+
+/* UTILITIES */
+if(!function_exists("print_recursive")) {
+	function print_recursive($data, $indent = 0, $linebreak = "<br />"){
+		if(is_array($data)){
+			foreach($data as $k => $v) {
+				if (is_array($v)){
+					for ($i = 0; $i < $indent * 10; $i++){
+						echo "&nbsp;";
+					}
+					echo "{$k}: {$linebreak}";
+					print_recursive($v, $indent + 1);
+				} else {
+					for ($i = 0; $i < $indent * 10; $i++){
+						echo "&nbsp;";
+					}
+					echo "{$k}: $v{$linebreak}";
 				}
+			}
+		} else {
+			var_dump($data);
 		}
-		$retur .= " />";
-		if(!$data["noLabel"] && ($data["label"] || $data["name"])) {
-			$retur .= "<label for=\"{$data["name"]}\">".ucfirst($data["label"] ? $data["label"] : $data["name"])."</label>";
+	}
+}
+if(!function_exists("array_sort_by_column")) {
+	function array_sort_by_column(&$arr, $col, $dir = SORT_ASC) {
+		$sort_col = [];
+		foreach ($arr as $key=> $row) {
+			$sort_col[$key] = $row[$col];
 		}
-		return($retur);
+		array_multisort($sort_col, $dir, $arr);
+	}
+}
+if(!function_exists("adressetekst")) {
+	function adressetekst($adresse, $separator = ",") {
+		if(!$adresse) return("");
+		$adressefelter = [];
+		if(isset($adresse["adresse1"]) && $adresse["adresse1"]) {
+			$adressefelter[] = $adresse["adresse1"];
+		}
+		if(isset($adresse["adresse2"]) && $adresse["adresse2"]) {
+			$adressefelter[] = $adresse["adresse2"];
+		}
+		if(isset($adresse["postnr"]) && $adresse["postnr"]) {
+			$adressefelter[] = $adresse["postnr"]." ".$adresse["bynavn"];
+		} elseif(isset($adresse["postnummer"]) && $adresse["postnummer"]) {
+			$adressefelter[] = $adresse["postnummer"]." ".$adresse["bynavn"];
+		}
+		return(implode("{$separator} ", $adressefelter));
 	}
 }
 if(!function_exists("swap_dato")) {
@@ -242,7 +425,12 @@ if(!function_exists("rens_tid")) {
 		return(implode(":", $tid_expl));
 	}
 }
-if(!function_exists('validateEmail')) {
+if(!function_exists("rens_tal")) {
+	function rens_tal($tal) { // Returnerer tal i amerikansk format
+		return floatval(str_replace(",", ".", str_replace(".", "", $tal)));
+	}
+}
+if(!function_exists("validateEmail")) {
 	function validateEmail($email) {
 		if(filter_var($email,FILTER_VALIDATE_EMAIL)) {
 			return(true);
@@ -297,7 +485,7 @@ if(!function_exists("hjemmeside")) {
 		return "http://{$url}";
 	}
 }
-if(!function_exists('inputEncode')) {
+if(!function_exists("inputEncode")) {
 	function inputEncode(&$value) {
 		$value = str_replace('"','&quot;',$value);
 		$value = str_replace("'",'&#39;',$value);
