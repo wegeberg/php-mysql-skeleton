@@ -2,6 +2,8 @@
 if(!defined("CONSTANTS_INCLUDED")) {
     define("CONSTANTS_INCLUDED", true);
 
+    define("VERSION", "1.0");
+
     if(!defined("ABSPATH")) {
         define("ABSPATH", dirname( __FILE__, 2)."/");   
     }
