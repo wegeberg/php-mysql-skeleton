@@ -505,15 +505,16 @@ if(!function_exists("assign_defaults")) {
 	}
 }
 if(!function_exists("named_parameters_function")) {
-	// Generic function using named parameters
-	function named_parameters_function($parameters) {
-		if(!is_array($parameters) || empty($parameters) && !$parameters) {
-			return null;
-		}
-		$data = assign_defaults($parameters, $defaults);
-		// .... $data[keyname]
-		// return $result
-	}
+    // Generic function using named parameters
+    function named_parameters_function($parameters) {
+        if(!is_array($parameters) || empty($parameters) && !$parameters) {
+            return null;
+        }
+        $defaults = [];
+        $data = assign_defaults($parameters, $defaults);
+        // .... $data[keyname]
+        // return $result
+    }
 }
 /* NAMED PARAMETERS SLUT */
 ?>
