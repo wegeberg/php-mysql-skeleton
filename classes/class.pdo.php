@@ -1,5 +1,8 @@
 <?php
-	// PDO wrapper class 1.9.4
+	// PDO wrapper class 1.9.7
+	// 2019-09-29 - Formattering af defines
+	// 2019-09-13 - get_result_from_query tilføjet
+	// 2019-08-10 - get_result
 	// 2019-03-19 - get_distinct, order part
 	// 2019-02-01 - get_row_count returnerer integer
 	// 2019-01-07 - function increment
@@ -15,17 +18,26 @@
 	// 2017-08-29 - tilføjet get_values_indexed
 	// Martin Wegeberg, http://www.wegeberg.dk/systemudvikling/
 
-	if(!defined('DB')) {
-		define('DB','Database included');
-		if(!defined('DB_DEBUG')) define('DB_DEBUG', false);
-		if(!defined('ERROR_LOGFILE')) define('ERROR_LOGFILE', 'mysql_error.log');
-		if(!defined('DEBUG_LOGFILE')) define('DEBUG_LOGFILE', 'mysql_debug.log');
-		if(!defined('DISPLAY_DEBUG')) define('DISPLAY_DEBUG', false);
-		if(!defined('DBCHARSET')) define('DBCHARSET', 'utf8');
+	if(!defined("PDO")) {
+		define("PDO","Database included");
+		if(!defined("DB_DEBUG")) {
+			define("DB_DEBUG", false);
+		}
+		if(!defined("ERROR_LOGFILE")) {
+			define("ERROR_LOGFILE", "pdo_error.log");
+		}
+		if(!defined("DEBUG_LOGFILE")) {
+			define("DEBUG_LOGFILE", "pdo_debug.log");
+		}
+		if(!defined("DISPLAY_DEBUG")) {
+			define("DISPLAY_DEBUG", false);
+		}
+		if(!defined("DBCHARSET")) {
+			define("DBCHARSET", "utf8");
+		}
 
 		class db {
 			public $sql;
-
 			private $dbh;
 			public $error;
 			private $dsn;
@@ -66,6 +78,17 @@
 				return($fieldNames);
 			}
 
+			public function numeric_fields($table) {
+				$fields = $this->fields($table);
+				$fieldsByName = [];
+				foreach($fields as $field) {
+					$isInteger = stripos($field["Type"], "int") === false ? false : true;
+					$isDecimal = stripos($field["Type"], "decimal") === false ? false : true;
+					$fieldsByName[$field["Field"]] = $isInteger || $isDecimal;
+				}
+				return $fieldsByName;
+			}
+
 			public function fields_is_integer($table) {
 				$fields = $this->fields($table);
 				$fieldsByName = [];
@@ -88,7 +111,7 @@
 					$this->log_db_error($this->error, "Warning");
 					return(false);
 				}
-				$fieldsIsInteger = $this->fields_is_integer($table);
+				$numericFields = $this->numeric_fields($table);
 				$keys = $values = $cleanedRow = [];
 				if($debug) {
 					$realValues = [];
@@ -98,10 +121,21 @@
 						$keys[] = "`{$key}`";
 						$values[] = ":{$key}";
 						if($debug) {
-							$realValue = $fieldsIsInteger[$key] && !$val ? "0" : $val;
-							$realValues[] = "'{$realValue}'";
+							if(!$val) {
+								$realValues[] = $numericFields[$key]
+									? "0"
+									: "NULL";
+							} else {
+								$realValues[] = "'{$val}'";
+							}
 						}
-						$cleanedRow[$key] = $fieldsIsInteger[$key] && !$val ? "0" : $val;
+						if(!$val) {
+							$cleanedRow[$key] = $numericFields[$key]
+								? 0
+								: NULL;
+						} else {
+							$cleanedRow[$key] = $val;
+						}
 					}
 				}
 				if(empty($keys) || empty($values)) {
@@ -131,20 +165,19 @@
 				return(true);
 			}
 
-			public function update($table, $id, $row, $conditions = null, $indexKey = "id") {
+			public function update($table, $id, $row, $conditions = null, $indexKey = "id", $debug = false) {
 				if(!$id && !$conditions) {
 					// Enten id eller conditions skal være angivet
 					return false;
 				}
-				$fieldNames = $this->field_names($table);
-				if(empty($fieldNames)) {
-					$this->error = "Couldn't fetch the columns for the table {$table}";
+				if(!is_array($row)) {
+					$this->error = "Row should be an array.";
 					$this->log_db_error($this->error, "Warning");
 					return(false);
 				}
-				$fieldsIsInteger = $this->fields_is_integer($table);
-				if(!is_array($row)) {
-					$this->error = "Row should be an array.";
+				$fieldNames = $this->field_names($table);
+				if(empty($fieldNames)) {
+					$this->error = "Couldn't fetch the columns for the table {$table}";
 					$this->log_db_error($this->error, "Warning");
 					return(false);
 				}
@@ -153,14 +186,31 @@
 				} else {
 					$conditionsString = $this->make_conditions($conditions);
 				}
+				$numericFields = $this->numeric_fields($table);
+				if($debug) {
+					$realValues = [];
+				}
 				$updates = $cleanedRow = [];
 //				$realValues = [];
 				foreach($row as $key=>$val) {
 					if($key != $indexKey && in_array($key, $fieldNames)) {
 						$updates[] = "`{$key}` = :{$key}";
-//						$realValue = $fieldsIsInteger[$key] && !$val ? "0" : $val;
-//						$realValues[] = "`{$key}` = '{$realValue}'";
-						$cleanedRow[$key] = $fieldsIsInteger[$key] && !$val ? "0" : $val;
+						if($debug) {
+							if(!$val) {
+								$realValues[] = $numericFields[$key]
+									? "0"
+									: "NULL";
+							} else {
+								$realValues[] = "'{$val}'";
+							}
+						}
+						if(!$val) {
+							$cleanedRow[$key] = $numericFields[$key]
+								? 0
+								: NULL;
+						} else {
+							$cleanedRow[$key] = $val;
+						}
 					}
 				}
 				if(empty($updates)) {
@@ -172,14 +222,16 @@
 					SET ".implode(', ', $updates).
 					" WHERE {$conditionsString}"
 				;
-//				$realQuery =
-//					"UPDATE {$table}
-//					SET ".implode(', ', $realValues).
-//					" WHERE {$conditionsString}"
-//				;
-//				echo "\n\n{$query}";
-//				echo "\n\n{$realQuery}";
-//				exit;
+				if($debug) {
+					$realQuery =
+						"UPDATE {$table}
+						SET ".implode(', ', $realValues).
+						" WHERE {$conditionsString}"
+					;
+					echo "\n\n{$query}";
+					echo "\n\n{$realQuery}";
+					exit;
+				}
 				$this->query($query);
 				$this->bindArrayValues($cleanedRow);
 				$this->execute();
@@ -334,6 +386,28 @@
 					return true;
 				}
 				return false;
+			}
+
+			public function get_result($table, $order = null, $conditions = null, $select = "*", $limit = null) {
+				$selectString = $this->make_select($select);
+				$conditionsString = $this->make_conditions($conditions);
+				$query =
+					"SELECT {$selectString}
+					FROM {$table}
+					WHERE {$conditionsString}
+					";
+				// echo $query."<br />";
+				if($order) $query .= "ORDER BY {$order} ";
+				if($limit) $query .= "LIMIT {$limit} ";
+				$this->sql = $query;
+				$result = $this->dbh->query($query);
+				return $result;
+			}
+
+			public function get_result_from_query($query) {
+				$this->sql = $query;
+				$result = $this->dbh->query($query);
+				return $result;
 			}
 
 			public function get_rows($table, $order = null, $conditions = null, $select = "*", $limit = null) {
@@ -641,7 +715,7 @@
 				$this->sql = $query;
 				try {
 					if(DB_DEBUG) {
-						$this->log_debug();
+						$this->log_debug("Log");
 					}
 					return $this->stmt = $this->dbh->prepare($query);
 				} catch(PDOException $e) {
@@ -652,7 +726,7 @@
 			private function execute(){
 				try {
 					if(DB_DEBUG) {
-						$this->log_debug();
+						$this->log_debug("Log");
 					}
 					return $this->stmt->execute();
 				} catch(PDOException $e) {
@@ -691,4 +765,3 @@
 			}
 		} // class db
 	} // if(!defined('DB'))
-?>
