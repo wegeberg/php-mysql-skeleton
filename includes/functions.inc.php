@@ -36,6 +36,9 @@ if (!function_exists("getShellArgs")) {
 }    
 /* DIVERSE SLUT */
 
+/* MAILGUN */
+
+
 
 /* DATABASE */
 if (!function_exists("createSlug")) {
@@ -63,9 +66,10 @@ if (!function_exists("createSlug")) {
     }
 }
 if(!function_exists("saveSlug")) {
-    function saveSlug($string, $table, $id, &$db, $showDebug = false) {
-        $devMsgs = [];
-        if(!$id || !$table) {
+    function saveSlug($string, $id, &$db, $showDebug = false) {
+		$devMsgs = [];
+		$table = "artikler";
+        if(!$id || !$string) {
             return "-- FEJL I SAVESLUG --";
         }
         $createdSlug = createSlug($string);
@@ -73,31 +77,50 @@ if(!function_exists("saveSlug")) {
             $createdSlug = substr($createdSlug, 0, 145);
         }
         $i = 1;
-        while($db->get_row_count("slugs", "slug LIKE '{$createdSlug}' AND tabel LIKE '{$table}' AND id <> {$id}")) {
-            if(!$db->get_row_count("slugs", "slug LIKE '".$createdSlug."-".(string) $i."'")) {
-                $createdSlug = $createdSlug."-".(string) $i;
-                break;
+
+        $eksisterendeSlugs = $db->get_rows(
+            "slugs",
+            "id ASC",
+            "slug LIKE '{$createdSlug}' AND artikel_id <> {$id}"
+        );
+        $devMsgs[] = $db->sql;
+        if(!empty($eksisterendeSlugs))  {
+            $devMsgs[] = "antalEksisterendeSlugs: ".count($eksisterendeSlugs);
+            for($i = 1; $i < 100; $i++) {
+                $eksisterendeSlugs = $db->get_rows(
+					"slugs",
+					"id ASC",
+					"slug LIKE '{$createdSlug}-{$i}' AND artikel_id <> {$id}"
+				);
+                $devMsgs[] = $db->sql;
+                $devMsgs[] = "antalEksisterendeSlugs-{$i}: ".count($eksisterendeSlugs);
+                if(empty($eksisterendeSlugs)) {
+                    $createdSlug .= "-{$i}";
+                    $devMsgs[] = "created {$createdSlug}";
+                    break;
+                }
             }
-            $devMsgs[] = $db->sql;
-            $i++;
         }
         if($table && $id) {
             $db->update($table, $id, ["slug"=>$createdSlug]);
             $devMsgs[] = $db->sql;
         }
-        $eksisterendeSlug = $db->get_row("slugs", 0, "tabel LIKE '{$table}' AND objekt_id = {$id}");
+        $eksisterendeSlug = $db->get_row(
+            "slugs",
+            0,
+            "tabel LIKE '{$table}' AND artikel_id = {$id}"
+        );
         $devMsgs[] = $db->sql;
+        
         if(!empty($eksisterendeSlug)) {
             $db->update("slugs", $eksisterendeSlug["id"], [
-                "slug"		=> $createdSlug,
-                "objekt_id"	=> $id,
-                "tabel"		=> $table
+                "slug"			=> $createdSlug,
+                "artikel_id"	=> $id
             ]);
         } else {
             $db->insert("slugs", [
-                "slug"		=> $createdSlug,
-                "objekt_id"	=> $id,
-                "tabel"		=> $table
+                "slug"			=> $createdSlug,
+                "artikel_id"	=> $id
             ]);
         }
         $devMsgs[] = $db->sql;
