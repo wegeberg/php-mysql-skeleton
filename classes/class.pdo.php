@@ -1,6 +1,8 @@
 <?php
-	// PDO wrapper class 2.0.0
-	// 2019-10-22 - get_row_join_multi
+	// PDO wrapper class 2.5.2
+	// 2020-02-11 - realQuery i update()
+	// 2020-02-03 - realQuery
+	// 2019-10-25 - Rettet increment
 	// 2019-09-29 - Formattering af defines
 	// 2019-09-13 - get_result_from_query tilføjet
 	// 2019-08-10 - get_result
@@ -39,6 +41,7 @@
 
 		class db {
 			public $sql;
+			public $realQuery;
 			private $dbh;
 			public $error;
 			private $dsn;
@@ -153,7 +156,7 @@
 					"INSERT INTO {$table}
 					({$keysString}) VALUES ({$valuesString})";
 				if($debug) {
-					$realQuery =
+					$this->realQuery =
 						"INSERT INTO {$table}
 						({$keysString}) VALUES ({$realValuesString})";
 					// echo "\n\n{$query}";
@@ -163,9 +166,6 @@
 				$this->query($query);
 				$this->bindArrayValues($cleanedRow);
 				$this->execute();
-				if($debug) {
-					return $realQuery;
-				}
 				return(true);
 			}
 
@@ -227,14 +227,11 @@
 					" WHERE {$conditionsString}"
 				;
 				if($debug) {
-					$realQuery =
+					$this->realQuery =
 						"UPDATE {$table}
-						SET ".implode(', ', $realValues).
+						SET ".implode(", ", $realValues).
 						" WHERE {$conditionsString}"
 					;
-					echo "\n\n{$query}";
-					echo "\n\n{$realQuery}";
-					exit;
 				}
 				$this->query($query);
 				$this->bindArrayValues($cleanedRow);
@@ -330,45 +327,9 @@
 					"SELECT {$selectString}
 					FROM {$table}
 					WHERE {$conditionsString} ";
-				if($order) $query .= "ORDER BY {$order} ";
-				$this->query($query);
-				return($this->single());
-			}
-
-			public function get_row_join_multi($masterId, $tables, $idFields, $conditions, $select, $order = null, $limit = null, $joinType = "INNER", $isSlug = false) {
-				// ANGIV MASTERTABEL FØRST i $tables og $idFields!!
-				if(!is_array($tables) || !is_array($idFields)) {
-					$this->error = "The first two parameters MUST be arrays!";
-					$this->log_db_error($this->error, "Warning");
-					return([]);
+				if($order) {
+					$query .= "ORDER BY {$order} ";
 				}
-				if(empty($tables) || empty($idFields) || count($tables) != count($idFields)) {
-					$this->error = "The two arrays need to be of equal length and not empty!";
-					$this->log_db_error($this->error, "Warning");
-					return([]);
-				}
-				$selectString = $this->make_select($select);
-				if($isSlug) {
-					$conditions[] = "{$tables[0]}.slug LIKE '{$masterId}'";
-				} else {
-					$conditions[] = "{$tables[0]}.{$idFields[0]} = {$masterId}";
-				}
-				$conditionsString = $this->make_conditions($conditions);
-				$joinString = "";
-				for($i = 1; $i < count($tables); $i++) {
-					if(stristr($idFields[$i], "SELECT")) {
-						$joinString .= "{$joinType} JOIN `{$tables[$i]}` ON `{$tables[0]}`.`{$idFields[0]}` = {$idFields[$i]} ";
-					} else {
-						$joinString .= "{$joinType} JOIN `{$tables[$i]}` ON `{$tables[0]}`.`{$idFields[0]}` = `{$tables[$i]}`.`{$idFields[$i]}` ";
-					}
-				}
-				$query =
-					"SELECT {$selectString}
-					FROM `{$tables[0]}`
-					{$joinString}
-					WHERE {$conditionsString} ";
-				if($order) $query .= "ORDER BY {$order} ";
-				if($limit) $query .= "LIMIT {$limit} ";
 				$this->query($query);
 				return($this->single());
 			}
@@ -476,7 +437,7 @@
 				} else {
 					return false;
 				}
-				$query = "UPDATE {$table} SET {$field} = {$field} + 1 WHERE {$conditionsString} LIMIT 1";
+				$query = "UPDATE {$table} SET {$field} = {$field} + {$increment} WHERE {$conditionsString} LIMIT 1";
 				$this->query($query);
 				return($this->execute());
 			}
