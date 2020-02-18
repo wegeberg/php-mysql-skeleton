@@ -159,9 +159,6 @@
 					$this->realQuery =
 						"INSERT INTO {$table}
 						({$keysString}) VALUES ({$realValuesString})";
-					echo "\n\n{$query}";
-					echo "\n\n{$realQuery}";
-					exit;
 				}
 				$this->query($query);
 				$this->bindArrayValues($cleanedRow);
