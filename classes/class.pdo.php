@@ -1,5 +1,11 @@
 <?php
-	// PDO wrapper class 2.5.2
+	// PDO wrapper class 2.5.8
+	// 2020-08-06 - table_exists, copy_table, create_table (stub)
+	// 2020-07-13 - Escape realQueryværdier i insert
+	// 2020-05-13 - Vælg ikke en række hvis id og conditions mangler - get_row()
+	// 2020-05-08 - Fjernet LIMIT fra increment
+	// 2020-04-13 - Mulighed for null conditions i get_row_count_multi
+	// 2020-03-01 - realQuery i update rettet
 	// 2020-02-11 - realQuery i update()
 	// 2020-02-03 - realQuery
 	// 2019-10-25 - Rettet increment
@@ -102,8 +108,41 @@
 				}
 				return $fieldsByName;
 			}
-
-			function insert($table, $row, $indexKey = "id", $debug = false) {
+			public function table_exists($table) {
+				$query = "SELECT 1 FROM {$table} LIMIT 1";
+				try {
+					$this->dbh->query($query);
+				} catch (Exception $e) {
+					return false;
+				}
+				return true;
+			}
+			public function create_table($table, $fields) {
+				if($this->table_exists($table)) {
+					return "Table {$table} exists";
+				}
+				// TODO
+			}
+			public function copy_table($table, $new_table_name) {
+				if(!$this->table_exists($table)) {
+					return [
+						"success"	=> false,
+						"error"		=> "source table does not exist"
+					];
+				}
+				if($this->table_exists($new_table_name)) {
+					return [
+						"success"	=> false,
+						"error"		=> "target table exists"
+					];
+				}
+				$this->query("CREATE TABLE {$new_table_name} LIKE {$table}");
+				$this->execute();
+				return [
+					"success"	=> true
+				];
+			}
+			public function insert($table, $row, $indexKey = "id", $debug = false) {
 				if(!is_array($row)) {
 					$this->error = "Row should be an array.";
 					$this->log_db_error($this->error, "Warning");
@@ -130,7 +169,7 @@
 									? "0"
 									: "NULL";
 							} else {
-								$realValues[] = "'{$val}'";
+								$realValues[] = "'".addslashes($val)."'";
 							}
 						}
 						if(!$val) {
@@ -159,6 +198,9 @@
 					$this->realQuery =
 						"INSERT INTO {$table}
 						({$keysString}) VALUES ({$realValuesString})";
+					// echo "\n\n{$query}";
+					// echo "\n\n{$realQuery}";
+					// exit;
 				}
 				$this->query($query);
 				$this->bindArrayValues($cleanedRow);
@@ -189,22 +231,29 @@
 				}
 				$numericFields = $this->numeric_fields($table);
 				if($debug) {
-					$realValues = [];
+					// $realValues = [];
+					$realUpdates = [];
 				}
 				$updates = $cleanedRow = [];
-//				$realValues = [];
 				foreach($row as $key=>$val) {
 					if($key != $indexKey && in_array($key, $fieldNames)) {
-						$updates[] = "`{$key}` = :{$key}";
 						if($debug) {
 							if(!$val) {
-								$realValues[] = $numericFields[$key]
-									? "0"
-									: "NULL";
+								if($numericFields[$key]) {
+									$realUpdates[] = "`{$key}` = 0";
+								} else {
+									$realUpdates[] = "`{$key}` = NULL";
+								}
+								// $realUpdates[] = "`{$key}` = {$numericFields[$key]}";
+								// $realValues[] = $numericFields[$key]
+								// 	? "0"
+								// 	: "NULL";
 							} else {
-								$realValues[] = "'{$val}'";
+								$realUpdates[] = "`{$key}` = '{$val}'";
+								// $realValues[] = "'{$val}'";
 							}
 						}
+						$updates[] = "`{$key}` = :{$key}";
 						if(!$val) {
 							$cleanedRow[$key] = $numericFields[$key]
 								? 0
@@ -226,7 +275,7 @@
 				if($debug) {
 					$this->realQuery =
 						"UPDATE {$table}
-						SET ".implode(", ", $realValues).
+						SET ".implode(", ", $realUpdates).
 						" WHERE {$conditionsString}"
 					;
 				}
@@ -311,7 +360,11 @@
 			}
 
 			public function get_row($table, $id = 0, $conditions = null, $order = null, $select = "*") {
-				$id = (int) $id;
+				$id = intval($id);
+				if(!$id && !$conditions) {
+					// Vælg ikke en række hvis id og conditions mangler
+					return null;
+				}
 				$selectString = $this->make_select($select);
 				if($id > 0) {
 					$conditionsString = "id = {$id}";
@@ -328,13 +381,11 @@
 					$query .= "ORDER BY {$order} ";
 				}
 				$this->query($query);
-				return($this->single());
+				return $this->single();
 			}
 
 			public function get_distinct($table, $column = "id", $order = null, $conditions = null, $limit = null) {
 				$conditionsString = $this->make_conditions($conditions);
-				// echo $conditionsString;
-				// exit;
 				if(!$order) {
 					$query =
 						"SELECT DISTINCT($column)
@@ -342,8 +393,6 @@
 						WHERE {$conditionsString} ";
 						"ORDER BY {$column} ";
 						if($limit) $query .= "LIMIT {$limit} ";
-						// echo $query;
-						// exit;
 				} else {
 					// tilføj felter i order til selected fields
 					$orderFieldsArray = explode(" ", $order);
@@ -359,8 +408,6 @@
 						WHERE {$conditionsString}
 						ORDER BY {$order} ";
 						if($limit) $query .= "LIMIT {$limit} ";
-					// echo $query;
-					// exit;
 				}
 				$this->query($query);
 				return($this->resultset(PDO::FETCH_COLUMN));
@@ -434,7 +481,7 @@
 				} else {
 					return false;
 				}
-				$query = "UPDATE {$table} SET {$field} = {$field} + {$increment} WHERE {$conditionsString} LIMIT 1";
+				$query = "UPDATE {$table} SET {$field} = {$field} + {$increment} WHERE {$conditionsString}";
 				$this->query($query);
 				return($this->execute());
 			}
@@ -522,7 +569,7 @@
 				);
 			}
 
-			public function get_row_count_multi($tables, $idFields, $conditions, $select = null) {
+			public function get_row_count_multi($tables, $idFields, $conditions = null, $select = null) {
 				if(!is_array($tables) || !is_array($idFields)) {
 					$this->error = "The first two parameters MUST be arrays!";
 					$this->log_db_error($this->error, "Warning");

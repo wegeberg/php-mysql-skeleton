@@ -1,5 +1,14 @@
 <?php
 /* DIVERSE */
+if(!function_exists("uuid")) {
+	function uuid() {
+		// http://www.seanbehan.com/how-to-generate-a-uuid-in-php/
+		$data = random_bytes(16);
+		$data[6] = chr(ord($data[6]) & 0x0f | 0x40); 
+		$data[8] = chr(ord($data[8]) & 0x3f | 0x80); 
+		return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+	}
+}
 if(!function_exists("ikon")) {
 	function ikon($class, $extraClass = "") {
 		return "<i class=\"{$class} {$extraClass}\"></i>&nbsp;";
@@ -35,10 +44,6 @@ if (!function_exists("getShellArgs")) {
     }
 }    
 /* DIVERSE SLUT */
-
-/* MAILGUN */
-
-
 
 /* DATABASE */
 if (!function_exists("createSlug")) {
@@ -320,6 +325,26 @@ if(!function_exists("editable_container")) {
 
 
 /* UTILITIES */
+if (!function_exists("pretty_dump")) {
+	function pretty_dump($arr, $d = 1) {
+		if ($d==1) echo "<pre>";    // HTML Only
+		if (is_array($arr)) {
+			foreach($arr as $k=>$v) {
+				for ($i=0;$i<$d;$i++) {
+					echo "\t";
+				}
+				if (is_array($v)){
+					echo $k.":".PHP_EOL;
+					pretty_dump($v, $d+1);
+				} else {
+					echo $k."\t".$v.PHP_EOL;
+				}
+			}
+		}
+		if ($d==1) echo "</pre>";   // HTML Only
+	}	
+}
+
 if(!function_exists("print_recursive")) {
 	function print_recursive($data, $indent = 0, $linebreak = "<br />"){
 		if(is_array($data)){
