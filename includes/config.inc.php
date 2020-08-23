@@ -14,7 +14,7 @@ if(!defined("CONFIG")) {
 	}
 	define("ADM_LOGIN", isset($_SESSION['login_id']) && trim($_SESSION['login_id']) != "");
 
-	if(!isset($logindSide) && !$admlogin) {
+	if(!isset($logindSide) && !ADM_LOGIN) {
 		header("Location:/index.php");
 	}
 }

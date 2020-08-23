@@ -137,7 +137,21 @@ if(!function_exists("saveSlug")) {
 }
 /* DATABASE SLUT */
 
-/* FORM FIELDS */
+if(!function_exists("classString")) {
+	function classString($parameters) {
+		$classes = [];
+		if(is_array($parameters)) {
+			foreach($parameters as $parameter) {
+				$classes[] = $parameter;
+			} 
+		} else {
+			$classes = explode(" ", $parameters);
+		}
+		return implode(" ", $classes);
+	}
+}
+
+/* FORM FIELD FUNCTIONS */
 if(!function_exists("textarea")) {
     function textarea($parameters) {
         $defaults = [
