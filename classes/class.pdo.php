@@ -1,5 +1,6 @@
 <?php
-	// PDO wrapper class 2.5.8
+	// PDO wrapper class 2.5.9
+	// 2020-08-30 - indexField i get_rows_indexed
 	// 2020-08-06 - table_exists, copy_table, create_table (stub)
 	// 2020-07-13 - Escape realQueryværdier i insert
 	// 2020-05-13 - Vælg ikke en række hvis id og conditions mangler - get_row()
@@ -26,6 +27,8 @@
 	// 2018-08-14 - tilføjet fields_is_integer (skifter '' ud med 0 for integers)
 	// 2017-08-29 - tilføjet get_values_indexed
 	// Martin Wegeberg, http://www.wegeberg.dk/systemudvikling/
+
+	// include("../includes/constants.inc.php");
 
 	if(!defined("PDO")) {
 		define("PDO","Database included");
@@ -520,14 +523,20 @@
 				return($returnRows);
 			}
 
-			public function get_rows_indexed($table, $order = null, $conditions = null, $select = "*", $limit = null) {
-				$rows = $this->get_rows($table, $order, $conditions, $select, $limit);
+			public function get_rows_indexed($table, $order = null, $conditions = null, $select = "*", $limit = null, $indexField = "id") {
+				$rows = $this->get_rows(
+					$table, 
+					$order, 
+					$conditions, 
+					$select, 
+					$limit
+				);
 				if(empty($rows)) {
 					return([]);
 				}
 				$returnRows = [];
 				foreach($rows as $row) {
-					$returnRows[$row['id']] = $row;
+					$returnRows[$row[$indexField]] = $row;
 				}
 				return($returnRows);
 			}
