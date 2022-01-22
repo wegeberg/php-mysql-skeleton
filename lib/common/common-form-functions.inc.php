@@ -31,10 +31,9 @@ if(!defined("FORM_FUNCTIONS_INCLUDED")) {
                 "noLabel"       => false,
                 "noPlaceholder" => false,
                 "required"      => false,
-                "label"         => "",
-                "style"			=> "",
+                "label"         => null,
+                "placeholder"   => null,
                 "formControl"   => true,
-                "rows"          => "5",
                 "disabled"      => false,
                 "labelclass"    => null,
                 "classes"       => [],
@@ -55,14 +54,17 @@ if(!defined("FORM_FUNCTIONS_INCLUDED")) {
                 $data["classes"] = explode(" ", $data["class"]);
             }
             if ($data["formControl"]) {
-                $classses[] = "form-control";
+                $data["classes"][] = "form-control";
             }
             $classString = $data["classes"]
                 ?   ' class="'.implode(" ", $data["classes"]).'"'
                 :   '';
-            $styleString = $data["styles"]
-                ? ' style="'.implode("; ", $data["styles"]).';"'
-                : "";
+            $styleString = "";
+            if ($data["styles"]) {
+                $styleString = is_array($data["styles"])
+                    ? ' style="'.implode("; ", $data["styles"]).';"'
+                    : ' style="{$data["style};"';
+            }
             $dataString = "";
             if ($data["dataTags"]) {
                 $dataString = " ";
@@ -253,7 +255,7 @@ CHECKBOX;
                 "firstValue"	=> 0,
                 "firstText"		=> "",
                 "showFirst"		=> true,
-                "valueFields"   => [ "navn" ],
+                "valueFields"   => [ "name" ],
                 "fullOptions"   => true,
                 "multiple"      => false,
                 "classes"       => [],

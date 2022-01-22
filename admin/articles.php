@@ -3,6 +3,8 @@ include("../includes/config.inc.php");
 include("../lib/common/common-functions.inc.php");
 
 $menuPoint = "articles";
+
+$articles = $db->get_rows("articles", "id ASC");
 ?>
 <!DOCTYPE html>
 <html lang="da">
@@ -44,7 +46,47 @@ $menuPoint = "articles";
 				<div class="alert alert-warning"><?php echo print_recursive($devMsgs);?></div>
 			<?php } ?>
 
-			<h1>Articles</h1>
+			<div>
+				<h1 class="d-inline-block">Articles</h1>
+				<a role="button" href="article.php" class="btn btn-primary float-end mt-2">
+					New article
+				</a>
+			</div>
+
+			<?php if (!$articles) { ?>
+				<p>
+					<small>
+						<em>No articles found</em>
+					</small>
+				</p>
+			<?php } else { ?>
+				<table class="table">
+					<thead>
+						<tr>
+							<th class="text-end">
+								#
+							</th>
+							<th>
+								Title
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($articles as $article) { ?>
+							<tr>
+								<td class="text-end" style="width: 50px;">
+									<?php echo $article["id"];?>
+								</td>
+								<td class="text-start">
+									<a href="article.php?id=<?php echo $article["id"];?>">
+										<?php echo $article["title"];?>
+									</a>
+								</td>
+							</tr>
+						<?php } ?>
+					</tbody>
+				</table>
+			<?php } ?>
 
         </div>
         <!-- /.container-fluid -->

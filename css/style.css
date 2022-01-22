@@ -3,3 +3,9 @@
     height: 60px;
     line-height: 60px;
 }
+label {
+	color: rgba(141, 141, 141, 1.00);
+	font-size: 0.8rem;
+    font-weight: 300;
+    padding-left: 0.15rem;
+}

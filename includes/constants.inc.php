@@ -3,8 +3,8 @@ if(!defined ("CONSTANTS_INCLUDED")) {
     define ("CONSTANTS_INCLUDED", true);
 
     if(!defined ("VERSION")) {
-        define ("VERSION", "1.0.0");
-        define ("VERSION_DATO", "2022-01-21");
+        define ("VERSION", "1.0.1");
+        define ("VERSION_DATO", "2022-01-22");
     }
 
     if (!defined ("ID_COOKIE_NAME")) {
