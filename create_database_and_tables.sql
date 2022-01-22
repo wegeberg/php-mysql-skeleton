@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Jan 22, 2022 at 07:59 AM
+-- Generation Time: Jan 22, 2022 at 08:57 AM
 -- Server version: 5.7.34
 -- PHP Version: 8.0.8
 SET
@@ -14,9 +14,25 @@ START TRANSACTION;
 SET
     time_zone = "+00:00";
 
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */
+;
+
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */
+;
+
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */
+;
+
+/*!40101 SET NAMES utf8mb4 */
+;
+
 --
 -- Database: `flexnet`
 --
+CREATE DATABASE IF NOT EXISTS `flexnet` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE `flexnet`;
+
 -- --------------------------------------------------------
 --
 -- Table structure for table `admin_rights`
@@ -29,7 +45,7 @@ CREATE TABLE `admin_rights` (
     `user_id` mediumint(8) UNSIGNED NOT NULL DEFAULT '0',
     `access_right` mediumint(8) UNSIGNED NOT NULL DEFAULT '0',
     `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE = InnoDB DEFAULT CHARSET = utf8;
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `admin_rights`
@@ -74,15 +90,15 @@ DROP TABLE IF EXISTS `admin_users`;
 
 CREATE TABLE `admin_users` (
     `id` mediumint(8) UNSIGNED NOT NULL,
-    `name` varchar(255) DEFAULT NULL,
-    `email` varchar(255) DEFAULT NULL,
-    `initials` varchar(8) DEFAULT NULL,
-    `phone` varchar(20) DEFAULT NULL,
-    `password_hash` varchar(255) DEFAULT NULL,
+    `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `initials` varchar(8) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `password_hash` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
     `deleted` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
     `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
     `edited_at` timestamp NULL DEFAULT NULL
-) ENGINE = InnoDB DEFAULT CHARSET = utf8;
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `admin_users`
@@ -181,3 +197,12 @@ MODIFY
     AUTO_INCREMENT = 3;
 
 COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */
+;
+
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */
+;
+
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */
+;
