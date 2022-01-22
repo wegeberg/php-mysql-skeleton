@@ -1,34 +1,6 @@
 <?php
-	// PDO wrapper class 2.5.9
-	// 2020-08-30 - indexField i get_rows_indexed
-	// 2020-08-06 - table_exists, copy_table, create_table (stub)
-	// 2020-07-13 - Escape realQueryværdier i insert
-	// 2020-05-13 - Vælg ikke en række hvis id og conditions mangler - get_row()
-	// 2020-05-08 - Fjernet LIMIT fra increment
-	// 2020-04-13 - Mulighed for null conditions i get_row_count_multi
-	// 2020-03-01 - realQuery i update rettet
-	// 2020-02-11 - realQuery i update()
-	// 2020-02-03 - realQuery
-	// 2019-10-25 - Rettet increment
-	// 2019-09-29 - Formattering af defines
-	// 2019-09-13 - get_result_from_query tilføjet
-	// 2019-08-10 - get_result
-	// 2019-03-19 - get_distinct, order part
-	// 2019-02-01 - get_row_count returnerer integer
-	// 2019-01-07 - function increment
-	// 2018-12-31 - update, Enten id eller conditions skal være angivet
-	// 2018-12-28 - && $orderField != $column tilføjet til get_distinct
-	// 2018-12-27 - Fejlrettelse, do_query
-	// 2018-12-24 - get_rows_join_multi, default order + joinType, returner resultat fra do_query hvis SELECT
-	// 2018-12-20 - get_row_count_multi tilføjet
-	// 2018-12-17 - do_query returnerer nu resultatet
-  	// 2018-12-14 - get_rows_join_multi: default værdier for $select og $order
-	// 2018-09-01 - get_distinct: tilføj order-felter til select
-	// 2018-08-14 - tilføjet fields_is_integer (skifter '' ud med 0 for integers)
-	// 2017-08-29 - tilføjet get_values_indexed
-	// Martin Wegeberg, http://www.wegeberg.dk/systemudvikling/
-
-	// include("../includes/constants.inc.php");
+	// PDO wrapper class 2.6.1
+	// Martin Wegeberg, https://www.flexnet.dk
 
 	if(!defined("PDO")) {
 		define("PDO","Database included");
@@ -45,7 +17,7 @@
 			define("DISPLAY_DEBUG", false);
 		}
 		if(!defined("DBCHARSET")) {
-			define("DBCHARSET", "utf8");
+			define("DBCHARSET", "utf8mb4");
 		}
 
 		class db {
@@ -76,7 +48,6 @@
 			}
 
 			public function fields($table) {
-				$fields = [];
 				$query = "SHOW COLUMNS FROM {$table}";
 				$this->query($query);
 				return($this->resultset());
@@ -310,6 +281,9 @@
 
 			public function get_value($table, $id = 0, $column = "id", $order = null, $conditions = null) {
 				$id = (int) $id;
+				if(!$id && !$conditions) {
+					return null;
+				}
 				if($id > 0) {
 					$conditionsString = "id = {$id}";
 				} else {
@@ -391,7 +365,7 @@
 				$conditionsString = $this->make_conditions($conditions);
 				if(!$order) {
 					$query =
-						"SELECT DISTINCT($column)
+						"SELECT DISTINCT($column) 
 						FROM {$table}
 						WHERE {$conditionsString} ";
 						"ORDER BY {$column} ";
@@ -475,7 +449,7 @@
 				return($this->resultset());
 			}
 
-			public function increment($table, $id = 0, $field, $conditions = null, $increment = 1) {
+			public function increment($table, $id, $field, $conditions = null, $increment = 1) {
 				$id = intval($id);
 				if($id > 0) {
 					$conditionsString = "id = {$id}";
