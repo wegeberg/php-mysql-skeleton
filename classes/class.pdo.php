@@ -73,7 +73,6 @@ if (!defined ("PDO")) {
 
         public function fields($table): array
         {
-            $fields = [];
             $query = "SHOW COLUMNS FROM {$table}";
             $this->query($query);
             return ($this->resultset());
@@ -101,22 +100,13 @@ if (!defined ("PDO")) {
             return $fieldsByName;
         }
 
-        public function fields_is_integer($table): array
-        {
-            $fields = $this->fields($table);
-            $fieldsByName = [];
-            foreach ($fields as $field) {
-                $isInteger = !(stripos ($field["Type"], "int") === false);
-                $fieldsByName[$field["Field"]] = $isInteger;
-            }
-            return $fieldsByName;
-        }
         public function table_exists($table): bool
         {
             $query = "SELECT 1 FROM {$table} LIMIT 1";
             try {
                 $this->dbh->query($query);
-            } catch (Exception $e) {
+            } catch (PDOException $e) {
+                $this->error = $e->getMessage();
                 return false;
             }
             return true;
@@ -378,7 +368,7 @@ RETURN;
             return $this->single();
         }
 
-        public function get_distinct($table, $column = "id", $order = null, $conditions = null, $limit = null)
+        public function get_distinct($table, $column = "id", $order = null, $conditions = null, $limit = null): bool|array
         {
             $conditionsString = $this->make_conditions($conditions);
 
@@ -392,14 +382,9 @@ RETURN;
         public function get_row_count($table, $conditions = null, $column = "id"): int
         {
             $conditionsString = $this->make_conditions($conditions);
-            $query = "SELECT COUNT( {$column} ) FROM `{$table}` WHERE {$conditionsString}";
+            $query = "SELECT COUNT( {$column} ) FROM {$table} WHERE {$conditionsString}";
             $this->query($query);
             return intval ($this->single(PDO::FETCH_COLUMN));
-        }
-
-        public function get_distinct_row_count($table, $conditions = null, $column = "id"): int
-        {
-            return $this->get_row_count($table, $conditions, $column);
         }
 
         public function exists($table, $id, $conditions, $column = "id"): bool
@@ -421,7 +406,7 @@ RETURN;
             return $this->dbh->query($query);
         }
 
-        public function get_result_from_query($query)
+        public function get_result_from_query($query): object
         {
             $this->sql = $query;
             return $this->dbh->query($query);
@@ -453,7 +438,7 @@ RETURN;
             return $this->execute();
         }
 
-        public function do_query($query): bool
+        public function do_query($query): array|bool
         {
             $this->query($query);
             if (stripos ($this->sql, "SELECT") !== false) {
@@ -497,7 +482,7 @@ RETURN;
                 $column = "{$table1}.{$column}";
             }
             $query = <<<QUERY
-SELECT DISTINCT( {$column} ) FROM {$table1} INNER JOIN {$table2} ON {$table1}.{$table1Idfield} = {$table2}.{$table2Idfield} WHERE {$conditions}
+SELECT DISTINCT( {$column} ) FROM {$table1} INNER JOIN {$table2} ON {$table1}.{$table1Idfield} = {$table2}.{$table2Idfield} WHERE {$conditionsString}
 QUERY;
             if ($order) $query .= " ORDER BY {$order} ";
             if ($limit) $query .= " LIMIT {$limit} ";
@@ -529,7 +514,7 @@ QUERY;
 INNER JOIN `{$tables[$i]}` ON `{$tables[0]}`.`{$idFields[0]}` = `{$tables[$i]}`.`{$idFields[$i]}` 
 JOINSTRING;
             }
-            $query = "SELECT COUNT( {$selectString} ) FROM `{$tables[0]}` {$joinString} WHERE {$conditionsString} ";
+            $query = "SELECT COUNT( {$selectString} ) FROM {$tables[0]} {$joinString} WHERE {$conditionsString} ";
             $this->query($query);
             return intval ($this->single(PDO::FETCH_COLUMN));
         }
@@ -556,14 +541,14 @@ JOINSTRING;
             for ($i = 1; $i < count ($tables); $i++) {
                 $joinString .= "{$joinType} JOIN `{$tables[$i]}` ON `{$tables[0]}`.`{$idFields[0]}` = `{$tables[$i]}`.`{$idFields[$i]}` ";
             }
-            $query = "SELECT {$selectString} FROM `{$tables[0]}` {$joinString} WHERE {$conditionsString} ";
+            $query = "SELECT {$selectString} FROM {$tables[0]} {$joinString} WHERE {$conditionsString} ";
             if ($order) $query .= "ORDER BY {$order} ";
             if ($limit) $query .= "LIMIT {$limit} ";
             $this->query($query);
             return $this->resultset();
         }
 
-        public function get_ids($table, $order = null, $conditions = null, $limit = null, $field = "id")
+        public function get_ids($table, $order = null, $conditions = null, $limit = null, $field = "id"): array
         {
             $conditionsString = $this->make_conditions($conditions);
             $query = "SELECT {$field} FROM {$table} WHERE {$conditionsString} ";
@@ -622,6 +607,7 @@ JOINSTRING;
             try {
                 return $this->stmt = $this->dbh->prepare($query);
             } catch (PDOException $e) {
+                $this->error = $e->getMessage();
                 return null;
             }
         }
@@ -636,7 +622,7 @@ JOINSTRING;
             return false;
         }
 
-        private function resultset($modifier = PDO::FETCH_ASSOC) {
+        private function resultset($modifier = PDO::FETCH_ASSOC): array {
             $this->execute();
             return $this->stmt->fetchAll($modifier);
         }
