@@ -2,7 +2,7 @@
 Including a number of utility functions - PHP and Javascript
 
 MySQL utility class is found in /classes/class.pdo.php
-
+ 
 Script for creating sample database: create_database_and_tables.sql
 
 Utility functions is located in /lib/common
