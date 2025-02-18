@@ -2,15 +2,15 @@
 include("../../../includes/constants.inc.php");
 include("../common-functions.inc.php");
 include("../../../classes/class.pdo.php");
-if(!isset($db)) {
+if (!isset($db)) {
 	$db = new db(DB_NAME);
 }
 
 $showDebug = false;
 $devMsgs = [];
 
-$table = isset($_POST["table"]) ? $_POST["table"] : null;
-$field = isset($_POST["field"]) ? $_POST["field"] : null;
+$table = $_POST["table"] ?? null;
+$field = $_POST["field"] ?? null;
 $id = isset($_POST["id"]) ? intval($_POST["id"]) : 0;
 $strong = isset($_POST["strong"]) && $_POST["strong"];
 
@@ -60,12 +60,12 @@ if($showDebug) print_recursive($_POST);
 </select>
 <div class="mb-3 mt-1">
 	<button class="btn btn-outline-success btn-sm w-auto d-inline" id="save-button-<?php echo $field;?>">
-		<i class="fal fa-save me-2"></i>Save time
+		Save time
 	</button>
 </div>
 
 <script>
-	$(document).ready(function() {
+	$(function() {
 		$.datepicker.setDefaults($.datepicker.regional["da"]);
 		$(".datepicker").datepicker({
 			dateFormat:'dd/mm/yy',

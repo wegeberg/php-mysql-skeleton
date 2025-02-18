@@ -1,6 +1,10 @@
 <?php
 include("../includes/config.inc.php");
 include("../lib/common/common-functions.inc.php");
+include("../classes/class.pdo.php");
+if (!isset($db)) {
+    $db = new db(DB_NAME);
+}
 
 $menuPoint = "articles";
 
@@ -16,20 +20,21 @@ $articles = $db->get_rows("articles", "id ASC");
     <meta name="author" content="Martin Wegeberg" />
     <title>Articles</title>
 
-	<!-- BOOTSTRAP -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <!-- BOOTSTRAP -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
-	<!-- JQUERY UI -->
-	<link href="https://code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css" rel="stylesheet" type="text/css">
-	
-	<!-- JQUERY -->
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-	
-	<!-- JQUERY UI -->
-	<script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js" integrity="sha256-hlKLmzaRlE8SCJC1Kw8zoUbU8BxA+8kR3gseuKfMjxA=" crossorigin="anonymous"></script>
+    <!-- JQUERY UI -->
+    <link href="https://code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css" rel="stylesheet" type="text/css">
+
+    <!-- JQUERY -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- JQUERY UI -->
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" crossorigin="anonymous"></script>
+    <link href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" rel="stylesheet" type="text/css">
 	
 	<!-- FONT AWESOME ICONS  -->
-	<link rel="stylesheet" href="/lib/fontawesome-pro-6.0.0-beta3-web/css/all.min.css" />
+	<link rel="stylesheet" href="/lib/fontawesome-free-6.7.2-web/css/all.css" />
 	
 	<!-- TOASTR -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
@@ -43,7 +48,7 @@ $articles = $db->get_rows("articles", "id ASC");
 
         <div class="container-fluid">
             <?php if (isset($showDebug) && $showDebug && !empty($devMsgs)) { ?>
-				<div class="alert alert-warning"><?php echo print_recursive($devMsgs);?></div>
+				<div class="alert alert-warning"><?php print_recursive($devMsgs);?></div>
 			<?php } ?>
 
 			<div>

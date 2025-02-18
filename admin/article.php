@@ -38,20 +38,21 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
     <meta name="author" content="Martin Wegeberg" />
     <title>Article</title>
 
-	<!-- BOOTSTRAP -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <!-- BOOTSTRAP -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
 	<!-- JQUERY UI -->
 	<link href="https://code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css" rel="stylesheet" type="text/css">
-	
-	<!-- JQUERY -->
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-	
-	<!-- JQUERY UI -->
-	<script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js" integrity="sha256-hlKLmzaRlE8SCJC1Kw8zoUbU8BxA+8kR3gseuKfMjxA=" crossorigin="anonymous"></script>
+
+    <!-- JQUERY -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- JQUERY UI -->
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" crossorigin="anonymous"></script>
+    <link href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" rel="stylesheet" type="text/css">
 	
 	<!-- FONT AWESOME ICONS  -->
-	<link rel="stylesheet" href="/lib/fontawesome-pro-6.0.0-beta3-web/css/all.min.css" />
+	<link rel="stylesheet" href="/lib/fontawesome-free-6.7.2-web/css/all.css" />
 	
 	<!-- TOASTR -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
@@ -65,7 +66,7 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 
         <div class="container-fluid">
             <?php if (isset($showDebug) && $showDebug && !empty($devMsgs)) { ?>
-				<div class="alert alert-warning"><?php echo print_recursive($devMsgs);?></div>
+				<div class="alert alert-warning"><?php print_recursive($devMsgs);?></div>
 			<?php } ?>
 
 			<div class="row mt-4">
@@ -88,7 +89,6 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 										class="btn btn-success btn-sm save-button"
 										style="display: none;"
 									>
-										<i class="fal fa-save me-2"></i>
 										Save article
 									</button>
 								</div>
@@ -186,9 +186,10 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
     <script src="/lib/tinymce5/tinymce.min.js"></script>
 
 	<script>
-		var article_id = $("#id").val();
+        const saveButtons = $(".save-button");
+		const article_id = $("#id").val();
 
-		$(document).ready(function() {
+		$(function () {
 			+article_id > 0 && articleCategories();
 		});
 
@@ -197,7 +198,7 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 			$.post(
 				"./scripts/articleCategories.php", 
 				{ article_id },
-				response => $("#related-categories").html(response)
+				data => $("#related-categories").html(data)
 			);
 		}
 		const addCategoryRelation = () => {
@@ -206,7 +207,7 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 			$.post(
 				"./scripts/addCategoryRelation.php",
 				{ article_id, category_id },
-				response => articleCategories()
+                () => articleCategories()
 			);
 		}
 
@@ -219,14 +220,14 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 		var formChanged = false;
 		function changesMade() {
 			formChanged = true;
-			$(".save-button").fadeIn();
+			saveButtons.fadeIn();
 		}
 
 		// Trigger changesMade
-		$("input[type=text], input[type=number], textarea").on('keyup change', function() {
+		$("input[type=text], input[type=number], textarea").on('keyup change', function () {
 			!$(this).hasClass("non-trigger") && changesMade();
 		});
-		$("input[type=checkbox]").on('click', function() {
+		$("input[type=checkbox]").on('click', function () {
 			!$(this).hasClass("non-trigger") && changesMade();
 		});
 		
@@ -235,7 +236,7 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 		// });
 
 		// Warning on changed
-		window.addEventListener('beforeunload', function(e) {
+		window.addEventListener('beforeunload', function (e) {
 			if(formChanged) {
 				const msg = "Changes not saved!";
 				e.returnValue = msg;
@@ -244,7 +245,7 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 		});
 
 		// Submit form
-		$(".save-button").on('click', function() {
+		saveButtons.on('click', () => {
 			formChanged = false;
 			$("#article-form").submit();
 		});
@@ -255,7 +256,7 @@ $article = $id && !isset($article) ? $db->get_row("articles", $id) : null;
 			plugins: ['wordcount'],
 			statusbar: true,
 			setup: editor => {
-				editor.on('keyup', () => changesMade());
+				editor.on('change', () => changesMade());
 				editor.on('init', () => {
 					// Change from word count to character count
 					$(editor.getContainer()).find('button.tox-statusbar__wordcount').click();

@@ -1,5 +1,17 @@
 <?php
-// PDO wrapper class 2.6.4
+// PDO wrapper class 3.0.4
+// 2025-02-11 - DISTINT tilføjet til get_row_count
+// 2025-01-31 - quoting fjernet
+// 2025-01-24 - Fejlrettelser
+// 2024-12-29 - Diverse oprydning
+// 2024-12-01 - get_distinct_count
+// 2024-11-29 - with_data tilføjet til copy_table copy_table($table, $new_table_name, $with_data = false)
+// 2024-11-26 - Mulighed for hentning af single column i do_query
+// 2024-11-11 - get_sum tager højde for null
+// 2024-10-31 - Default value i exists()
+// 2024-05-31 - get_row_multi
+// 2024-03-16 - Fejl i get_sum rettet (returnerede altid int)
+// 2023-08-25 - group_by i get_rows
 // 2022-11-25 - copy_table, create_table, get_query
 // 2022-09-14 - Generel oprydning
 // 2022-08-30 - Linting
@@ -34,13 +46,14 @@
 
 // include("../includes/constants.inc.php");
 
-if (!defined ("PDO")) {
-    define ("PDO","Database included");
-    if (!defined ("DBCHARSET")) {
-        define ("DBCHARSET", "utf8");
+if (!defined("PDO")) {
+    define("PDO", "Database included");
+    if (!defined("DBCHARSET")) {
+        define("DBCHARSET", "utf8");
     }
 
-    class db {
+    class db
+    {
         public string $sql = "";
         public string $realQuery = "";
         private PDO $dbh;
@@ -50,18 +63,18 @@ if (!defined ("PDO")) {
         private array $options = [
             PDO::ATTR_PERSISTENT => true,
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES "'.DBCHARSET.'"'
+            PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES "' . DBCHARSET . '"'
         ];
 
-        public function __construct($dbName = null, $dbUser = null, $dbPass = null, $dbHost = null) {
+        public function __construct($dbName = null, $dbUser = null, $dbPass = null, $dbHost = null)
+        {
             $this->dsn = "mysql:host="
-                .($dbHost ?: DB_HOST)
-                .";dbname=".($dbName ?: DB_NAME)
-                .";charset=".DBCHARSET;
+                . ($dbHost ?: DB_HOST)
+                . ";dbname=" . ($dbName ?: DB_NAME)
+                . ";charset=" . DBCHARSET;
             try {
                 $this->dbh = new PDO($this->dsn, ($dbUser ?: DB_USER), ($dbPass ?: DB_PASS), $this->options);
-            }
-            catch (PDOException $e) {
+            } catch (PDOException $e) {
                 $this->error = $e->getMessage();
             }
         }
@@ -71,38 +84,38 @@ if (!defined ("PDO")) {
             return $this->stmt->queryString ?? "";
         }
 
-        public function fields($table): array
+        public function columns($table): array
         {
-            $query = "SHOW COLUMNS FROM {$table}";
+            $query = "SHOW COLUMNS FROM " . $table;
             $this->query($query);
-            return ($this->resultset());
+            return $this->resultset();
         }
 
-        public function field_names($table): array
+        public function column_names($table): array
         {
-            $fields = $this->fields($table);
-            $fieldNames = [];
-            foreach ($fields as $field) {
-                $fieldNames[] = $field["Field"];
+            $columns = $this->columns($table);
+            $columnNames = [];
+            foreach ($columns as $column) {
+                $columnNames[] = $column["Field"];
             }
-            return ($fieldNames);
+            return ($columnNames);
         }
 
-        public function numeric_fields($table): array
+        public function numeric_columns($table): array
         {
-            $fields = $this->fields($table);
-            $fieldsByName = [];
-            foreach ($fields as $field) {
-                $isInteger = !(stripos ($field["Type"], "int") === false);
-                $isDecimal = !(stripos ($field["Type"], "decimal") === false);
-                $fieldsByName[$field["Field"]] = $isInteger || $isDecimal;
+            $columns = $this->columns($table);
+            $columnsByName = [];
+            foreach ($columns as $column) {
+                $isInteger = !(stripos($column["Type"], "int") === false);
+                $isDecimal = !(stripos($column["Type"], "decimal") === false);
+                $columnsByName[$column["Field"]] = $isInteger || $isDecimal;
             }
-            return $fieldsByName;
+            return $columnsByName;
         }
 
         public function table_exists($table): bool
         {
-            $query = "SELECT 1 FROM {$table} LIMIT 1";
+            $query = "SELECT 1 FROM " . $table . " LIMIT 1";
             try {
                 $this->dbh->query($query);
             } catch (PDOException $e) {
@@ -114,34 +127,42 @@ if (!defined ("PDO")) {
 
         public function create_table($table, $columns, $primaryKey = "id"): bool
         {
+            // Stucture of $columns:
+            /*
+            $columns = [
+                COLUMN_NAME => [
+                    "type" => COLUMN_TYPE,
+                    "extras" => COLUMN_EXTRAS,
+                    "default" => COLUMN_DEFAULT
+                ]
+            ]
+             */
             if (!$table || !$columns) {
-                $this->error = "table and column parameters must be defined";
+                $this->error = "Table and column parameters must be defined";
                 return false;
-
             }
             if ($this->table_exists($table)) {
                 $this->error = "Table already exists";
                 return false;
             }
             $columnLines = [];
-            if (!in_array ($primaryKey, array_keys ($columns))) {
-                $columns = array_merge ([ "id" => [] ], $columns);
+            if (!in_array($primaryKey, array_keys($columns))) {
+                $columns = array_merge(["id" => []], $columns);
             }
 
             foreach ($columns as $columnName => $column) {
-                // COLUMN_NAME => [ "type" => COLUMN_TYPE, "extras" => COLUMN_EXTRAS, "default" => COLUMN_DEFAULT ]
                 $type = $column["type"] ?? "int(8) UNSIGNED";
                 $extras = $column["extras"] ?? "NULL";
-                $default = $column["default"] ?? (stripos ($type, 'int') !== false ? "DEFAULT '0'" : "DEFAULT NULL");
-                if (stripos ($default, "DEFAULT") === false) {
+                $default = $column["default"] ?? (stripos($type, 'int') !== false ? "DEFAULT 0" : "DEFAULT NULL");
+                if (stripos($default, "DEFAULT") === false) {
                     $default = "DEFAULT {$default}";
                 }
                 $columnLines[] = $columnName === $primaryKey
-                    ?   "{$columnName} {$type} NOT NULL AUTO_INCREMENT"
-                    :   "{$columnName} {$type} ${extras} {$default}";
+                    ? $columnName . " " . $type . " NOT NULL AUTO_INCREMENT"
+                    : $columnName . " " . $type . " " . $extras . " " . $default;
             }
 
-            $columnsString = implode (",\n", $columnLines);
+            $columnsString = implode(",\n", $columnLines);
             $query = <<<RETURN
 CREATE TABLE {$table} (
     {$columnsString},
@@ -158,7 +179,7 @@ RETURN;
             return true;
         }
 
-        public function copy_table($table, $new_table_name): bool
+        public function copy_table($table, $new_table_name, $with_data = false): bool
         {
             if (!$this->table_exists($table)) {
                 $this->error = "Source table does not exist";
@@ -168,36 +189,40 @@ RETURN;
                 $this->error = "Target table already exists";
                 return false;
             }
-            $this->query("CREATE TABLE {$new_table_name} LIKE {$table}");
+            $this->query("CREATE TABLE " . $new_table_name . " LIKE " . $table);
             $this->execute();
+            if ($with_data) {
+                $this->query("INSERT INTO " . $new_table_name . " SELECT * FROM " . $table);
+                $this->execute();
+            }
             return true;
         }
 
         public function insert($table, $row, $indexKey = "id", $debug = false): bool
         {
-            if (!is_array ($row)) {
+            if (!is_array($row)) {
                 $this->error = "Row should be an array.";
                 return false;
             }
-            $fieldNames = $this->field_names($table);
-            if (empty ($fieldNames)) {
-                $this->error = "Couldn't fetch the columns for the table {$table}";
+            $columnNames = $this->column_names($table);
+            if (empty ($columnNames)) {
+                $this->error = "Couldn't fetch the columns for the table " . $table;
                 return false;
             }
-            $numericFields = $this->numeric_fields($table);
+            $numericFields = $this->numeric_columns($table);
             $keys = $values = $cleanedRow = [];
             if ($debug) {
                 $realValues = [];
             }
-            foreach ($row as $key=>$val) {
-                if ($key != $indexKey && in_array ($key, $fieldNames)) {
-                    $keys[] = "`{$key}`";
-                    $values[] = ":{$key}";
+            foreach ($row as $key => $val) {
+                if ($key != $indexKey && in_array($key, $columnNames)) {
+                    $keys[] = $key;
+                    $values[] = ":" . $key;
                     if ($debug) {
                         if (!$val) {
                             $realValues[] = $numericFields[$key] ? "0" : "NULL";
                         } else {
-                            $realValues[] = "'".addslashes ($val)."'";
+                            $realValues[] = "'" . addslashes($val) . "'";
                         }
                     }
                     if (!$val) {
@@ -211,14 +236,14 @@ RETURN;
                 $this->error = "Either no keys or no values.";
                 return false;
             }
-            $keysString = implode (", ", $keys);
-            $valuesString = implode (", ", $values);
+            $keysString = implode(", ", $keys);
+            $valuesString = implode(", ", $values);
             if ($debug) {
-                $realValuesString = implode (", ", $realValues);
+                $realValuesString = implode(", ", $realValues);
             }
-            $query = "INSERT INTO {$table} ({$keysString}) VALUES ({$valuesString})";
+            $query = "INSERT INTO " . $table . " (" . $keysString . ") VALUES (" . $valuesString . ")";
             if ($debug) {
-                $this->realQuery = "INSERT INTO {$table} ({$keysString}) VALUES ({$realValuesString})";
+                $this->realQuery = "INSERT INTO " . $table . " (" . $keysString . ") VALUES (" . $realValuesString . ")";
             }
             $this->query($query);
             $this->bindArrayValues($cleanedRow);
@@ -229,43 +254,43 @@ RETURN;
         public function update($table, $id, $row, $conditions = null, $indexKey = "id", $debug = false): bool
         {
             if (!$id && !$conditions) {
-                // Enten id eller conditions skal være angivet
+                // Either $id or $conditions must be set
                 return false;
             }
-            if (!is_array ($row)) {
+            if (!is_array($row)) {
                 $this->error = "Row should be an array.";
                 return false;
             }
-            $fieldNames = $this->field_names($table);
-            if (empty ($fieldNames)) {
-                $this->error = "Couldn't fetch the columns for the table {$table}";
+            $columnNames = $this->column_names($table);
+            if (empty ($columnNames)) {
+                $this->error = "Couldn't fetch the columns for the table " . $table;
                 return false;
             }
-            if ($id > 0) {
-                $conditionsString = "id = ".intval ($id);
+            if ($id) {
+                $conditionsString = "id = " . intval($id);
             } else {
                 $conditionsString = $this->make_conditions($conditions);
             }
-            $numericFields = $this->numeric_fields($table);
+            $numericFields = $this->numeric_columns($table);
             if ($debug) {
                 // $realValues = [];
                 $realUpdates = [];
             }
             $updates = $cleanedRow = [];
-            foreach ($row as $key=>$val) {
-                if ($key != $indexKey && in_array ($key, $fieldNames)) {
+            foreach ($row as $key => $val) {
+                if ($key != $indexKey && in_array($key, $columnNames)) {
                     if ($debug) {
                         if (!$val) {
                             if ($numericFields[$key]) {
-                                $realUpdates[] = "`{$key}` = 0";
+                                $realUpdates[] = $key . " = 0";
                             } else {
-                                $realUpdates[] = "`{$key}` = NULL";
+                                $realUpdates[] = $key . " = NULL";
                             }
                         } else {
-                            $realUpdates[] = "`{$key}` = '{$val}'";
+                            $realUpdates[] = $key . " = '" . $val . "'";
                         }
                     }
-                    $updates[] = "`{$key}` = :{$key}";
+                    $updates[] = $key . " = :" . $key;
                     if (!$val) {
                         $cleanedRow[$key] = $numericFields[$key]
                             ? 0
@@ -276,12 +301,12 @@ RETURN;
                 }
             }
             if (empty ($updates)) {
-                $this->error = "Intet at opdatere";
+                $this->error = "Nothing to update";
+                return false;
             }
-            $query = "UPDATE {$table} SET ".implode (', ', $updates)." WHERE {$conditionsString}"
-            ;
+            $query = "UPDATE " . $table . " SET " . implode(', ', $updates) . " WHERE " . $conditionsString;
             if ($debug) {
-                $this->realQuery = "UPDATE {$table} SET ".implode (", ", $realUpdates)." WHERE {$conditionsString}";
+                $this->realQuery = "UPDATE " . $table . " SET " . implode(', ', $realUpdates) . " WHERE " . $conditionsString;
             }
             $this->query($query);
             $this->bindArrayValues($cleanedRow);
@@ -295,20 +320,21 @@ RETURN;
                 $this->error = "No criteria given";
                 return false;
             }
-            $id = (int) $id;
+            $id = intval($id);
             if ($id > 0) {
-                $conditionsString = "id = {$id}";
+                $conditionsString = "id = " . $id;
             } else {
                 $conditionsString = $this->make_conditions($conditions);
             }
-            $query = "DELETE FROM {$table} WHERE {$conditionsString}";
+            $query = "DELETE FROM " . $table . " WHERE " . $conditionsString;
             $this->query($query);
             $this->execute();
             return true;
         }
 
-        public function get_value($table, $id = 0, $column = "id", $order = null, $conditions = null) {
-            $id = (int) $id;
+        public function get_value($table, $id = 0, $column = "id", $order = null, $conditions = null)
+        {
+            $id = intval($id);
             if (!$id && !$conditions) {
                 return null;
             }
@@ -317,40 +343,48 @@ RETURN;
             } else {
                 $conditionsString = $this->make_conditions($conditions);
             }
-            $query = "SELECT {$column} FROM {$table} WHERE {$conditionsString} ";
-            if ($order) $query .= "ORDER BY {$order} ";
+            $query = "SELECT " . $column . " FROM " . $table . " WHERE " . $conditionsString . " ";
+            if ($order) {
+                $query .= "ORDER BY {$order} ";
+            }
             $this->query($query);
             return $this->single(PDO::FETCH_COLUMN);
         }
 
-        public function get_sum($table, $column, $conditions = null): int
+        public function get_sum($table, $column, $conditions = null): int|float
         {
             $conditionsString = $this->make_conditions($conditions);
-            $query = "SELECT SUM({$column}) FROM {$table} WHERE {$conditionsString}";
+            $query = "SELECT SUM(" . $column . ") FROM " . $table . " WHERE " . $conditionsString . " ";
             $this->query($query);
-            return intval ($this->single(PDO::FETCH_COLUMN));
+            $result = $this->single(PDO::FETCH_COLUMN);
+            if (!$result) {
+                return 0;
+            }
+            return $result;
         }
 
-        public function get_max($table, $field, $conditions = null) {
+        public function get_max($table, $column, $conditions = null)
+        {
             $conditionsString = ($conditions
                 ? $this->make_conditions($conditions)
                 : "1"
             );
-            $query = "SELECT MAX({$field}) FROM {$table} WHERE {$conditionsString} LIMIT 1";
+            $query = "SELECT MAX(" . $column . ") FROM " . $table . " WHERE " . $conditionsString . " LIMIT 1";
             $this->query($query);
             return $this->single(PDO::FETCH_COLUMN);
         }
 
-        public function get_min($table, $field, $conditions = null) {
+        public function get_min($table, $column, $conditions = null)
+        {
             $conditionsString = $conditions ? $this->make_conditions($conditions) : "1";
-            $query = "SELECT min({$field}) FROM {$table} WHERE {$conditionsString} LIMIT 1";
+            $query = "SELECT MIN(" . $column . ") FROM " . $table . " WHERE " . $conditionsString . " LIMIT 1";
             $this->query($query);
             return $this->single(PDO::FETCH_COLUMN);
         }
 
         public function get_row($table, $id = 0, $conditions = null, $order = null, $select = "*")
         {
-            $id = intval ($id);
+            $id = intval($id);
             if (!$id && !$conditions) return null;
             $selectString = $this->make_select($select);
             if ($id > 0) {
@@ -360,9 +394,9 @@ RETURN;
             } else {
                 $conditionsString = "1";
             }
-            $query = "SELECT {$selectString} FROM {$table} WHERE {$conditionsString}";
+            $query = "SELECT " . $selectString . " FROM " . $table . " WHERE " . $conditionsString . " ";
             if ($order) {
-                $query .= " ORDER BY {$order} ";
+                $query .= "ORDER BY {$order} ";
             }
             $this->query($query);
             return $this->single();
@@ -373,8 +407,10 @@ RETURN;
             $conditionsString = $this->make_conditions($conditions);
 
             $orderBy = $order ?? $column;
-            $query = "SELECT DISTINCT( {$column} ) FROM {$table} WHERE {$conditionsString} ORDER BY {$orderBy}";
-            if ($limit) $query .= " LIMIT {$limit} ";
+            $query = "SELECT DISTINCT(" . $column . ") FROM " . $table . " WHERE " . $conditionsString . " ORDER BY " . $orderBy;
+            if ($limit) {
+                $query .= " LIMIT " . $limit;
+            }
             $this->query($query);
             return $this->resultset(PDO::FETCH_COLUMN);
         }
@@ -382,15 +418,23 @@ RETURN;
         public function get_row_count($table, $conditions = null, $column = "id"): int
         {
             $conditionsString = $this->make_conditions($conditions);
-            $query = "SELECT COUNT( {$column} ) FROM {$table} WHERE {$conditionsString}";
+            $query = "SELECT COUNT(DISTINCT(" . $column . ")) FROM " . $table . " WHERE " . $conditionsString . " ";
             $this->query($query);
-            return intval ($this->single(PDO::FETCH_COLUMN));
+            return intval($this->single(PDO::FETCH_COLUMN));
         }
 
-        public function exists($table, $id, $conditions, $column = "id"): bool
+        public function get_distinct_count($table, $conditions = null, $column = "id"): int
         {
-            if (intval ($id) > 0) {
-                $conditions = "id = ".intval ($id);
+            $conditionsString = $this->make_conditions($conditions);
+            $query = "SELECT COUNT( DISTINCT (" . $column . " ) ) FROM " . $table . " WHERE " . $conditionsString;
+            $this->query($query);
+            return intval($this->single(PDO::FETCH_COLUMN));
+        }
+
+        public function exists($table, $id, $conditions = null, $column = "id"): bool
+        {
+            if (intval($id) > 0) {
+                $conditions = "id = " . intval($id);
             }
             return $this->get_row_count($table, $conditions, $column) > 0;
         }
@@ -399,9 +443,13 @@ RETURN;
         {
             $selectString = $this->make_select($select);
             $conditionsString = $this->make_conditions($conditions);
-            $query = "SELECT {$selectString} FROM {$table} WHERE {$conditionsString}";
-            if ($order) $query .= " ORDER BY {$order} ";
-            if ($limit) $query .= " LIMIT {$limit} ";
+            $query = "SELECT " . $selectString . " FROM " . $table . " WHERE " . $conditionsString;
+            if ($order) {
+                $query .= " ORDER BY " . $order;
+            }
+            if ($limit) {
+                $query .= " LIMIT " . $limit;
+            }
             $this->sql = $query;
             return $this->dbh->query($query);
         }
@@ -412,20 +460,27 @@ RETURN;
             return $this->dbh->query($query);
         }
 
-        public function get_rows($table, $order = null, $conditions = null, $select = "*", $limit = null): array
+        public function get_rows($table, $order = null, $conditions = null, $select = "*", $limit = null, $groupBy = null): array
         {
             $selectString = $this->make_select($select);
             $conditionsString = $this->make_conditions($conditions);
-            $query = "SELECT {$selectString} FROM {$table} WHERE {$conditionsString}";
-            if ($order) $query .= " ORDER BY {$order}";
-            if ($limit) $query .= " LIMIT {$limit}";
+            $query = "SELECT " . $selectString . " FROM " . $table . " WHERE " . $conditionsString;
+            if ($groupBy) {
+                $query .= " GROUP BY " . $groupBy;
+            }
+            if ($order) {
+                $query .= " ORDER BY " . $order;
+            }
+            if ($limit) {
+                $query .= " LIMIT " . $limit;
+            }
             $this->query($query);
             return $this->resultset();
         }
 
-        public function increment($table, $id, $field, $conditions = null, $increment = 1): ?bool
+        public function increment($table, $id, $column, $conditions = null, $increment = 1): ?bool
         {
-            $id = intval ($id);
+            $id = intval($id);
             if ($id > 0) {
                 $conditionsString = "id = {$id}";
             } else if ($conditions) {
@@ -433,23 +488,27 @@ RETURN;
             } else {
                 return false;
             }
-            $query = "UPDATE {$table} SET {$field} = {$field} + {$increment} WHERE {$conditionsString}";
+            $query = "UPDATE " . $table . " SET " . $column . " = " . $column . "  + " . $increment . " WHERE " . $conditionsString;
             $this->query($query);
             return $this->execute();
         }
 
-        public function do_query($query): array|bool
+        public function do_query($query, $singleColumn = null): array|bool
         {
             $this->query($query);
             if (stripos ($this->sql, "SELECT") !== false) {
-                return $this->resultset();
+                if ($singleColumn) {
+                    return $this->resultset(PDO::FETCH_COLUMN);
+                } else {
+                    return $this->resultset();
+                }
             }
             return $this->execute();
         }
 
         public function get_values_indexed($table, $valueField, $conditions = null, $order = null, $limit = null, $indexField = "id"): array
         {
-            $rows = $this->get_rows($table, $order, $conditions, "{$indexField}, {$valueField}", $limit);
+            $rows = $this->get_rows($table, $order, $conditions, [$indexField, $valueField], $limit);
             if (!$rows) return [];
             $returnRows = [];
             foreach ($rows as $row) {
@@ -467,7 +526,9 @@ RETURN;
                 $select,
                 $limit
             );
-            if (!$rows) return [];
+            if (!$rows) {
+                return [];
+            }
             $returnRows = [];
             foreach ($rows as $row) {
                 $returnRows[$row[$indexField]] = $row;
@@ -478,14 +539,22 @@ RETURN;
         public function get_distinct_join($table1, $table2, $table1Idfield, $table2Idfield, $conditions, $column, $order, $limit = null): array
         {
             $conditionsString = $this->make_conditions($conditions);
-            if (!stristr ($column, ".")) { // no table in $column
-                $column = "{$table1}.{$column}";
+            if (!stristr($column, ".")) { // no table in $column
+                $column = "" . $table1 . "." . $column;
             }
             $query = <<<QUERY
-SELECT DISTINCT( {$column} ) FROM {$table1} INNER JOIN {$table2} ON {$table1}.{$table1Idfield} = {$table2}.{$table2Idfield} WHERE {$conditionsString}
+    SELECT DISTINCT( {$column} ) 
+    FROM {$table1} 
+    INNER JOIN {$table2}
+        ON {$table1}.{$table1Idfield} = {$table2}.{$table2Idfield} 
+    WHERE {$conditionsString}
 QUERY;
-            if ($order) $query .= " ORDER BY {$order} ";
-            if ($limit) $query .= " LIMIT {$limit} ";
+            if ($order) {
+                $query .= " ORDER BY " . $order;
+            }
+            if ($limit) {
+                $query .= " LIMIT " . $limit;
+            }
             $this->query($query);
             return $this->resultset(PDO::FETCH_COLUMN);
         }
@@ -497,95 +566,129 @@ QUERY;
 
         public function get_row_count_multi($tables, $idFields, $conditions = null, $select = null): int
         {
-            if (!is_array ($tables) || !is_array ($idFields)) {
+            if (!is_array($tables) || !is_array($idFields)) {
                 $this->error = "The first two parameters MUST be arrays!";
                 return 0;
             }
-            if (empty ($tables) || empty ($idFields) || count($tables) != count($idFields)) {
+            if (count($tables) != count($idFields) || count($tables) < 2) {
                 $this->error = "The two arrays need to be of equal length and not empty!";
                 return 0;
             }
             $conditionsString = $this->make_conditions($conditions);
-            $selectString = $select ?? "{$tables[0]}.id";
+            $selectString = $select ?? $tables[0] . ".id";
             $joinString = "";
-            for ($i = 1; $i < count ($tables); $i++) {
-
-                $joinString .= <<<JOINSTRING
-INNER JOIN `{$tables[$i]}` ON `{$tables[0]}`.`{$idFields[0]}` = `{$tables[$i]}`.`{$idFields[$i]}` 
-JOINSTRING;
+            for ($i = 1; $i < count($tables); $i++) {
+                $joinString .= "INNER JOIN " . $tables[$i] . " ON " . $tables[0] . "." . $idFields[0] . " = " . $tables[$i] . "." . $idFields[$i];
             }
-            $query = "SELECT COUNT( {$selectString} ) FROM {$tables[0]} {$joinString} WHERE {$conditionsString} ";
+            $query = "SELECT COUNT( " . $selectString . " ) FROM " . $tables[0] . " " . $joinString . " WHERE " . $conditionsString;
             $this->query($query);
-            return intval ($this->single(PDO::FETCH_COLUMN));
+            return intval($this->single(PDO::FETCH_COLUMN));
         }
 
-        public function get_rows_join_multi($tables, $idFields, $conditions, $select = null, $order = null, $limit = null, $joinType = "INNER"): ?array
+        public function get_row_multi($tables, $idFields, $id = 0, $select = null, $conditions = null, $order = null, $joinType = "INNER")
         {
-            if (!is_array ($tables) || !is_array ($idFields)) {
+            if (!is_array($tables) || !is_array($idFields)) {
                 $this->error = "The first two parameters MUST be arrays!";
                 return null;
             }
-            if (empty ($tables) || empty ($idFields) || count($tables) != count($idFields)) {
+            if (count($tables) != count($idFields) || count($tables) < 2) {
                 $this->error = "The two arrays need to be of equal length and not empty!";
                 return null;
             }
-            if (!$select) {
-                $select = "{$tables[0]}.*";
+            $selectString = $select ? $this->make_select($select) : $tables[0] . ".*";
+            if ($id > 0) {
+                $conditionsString = $tables[0] . ".id = " . $id;
+            } else {
+                $conditionsString = $this->make_conditions($conditions);
+            }
+            $joinString = "";
+            for ($i = 1; $i < count($tables); $i++) {
+                $joinString .= $joinType . " JOIN " . $tables[$i] . " ON " . $tables[0] . "." . $idFields[0] . " = " . $tables[$i] . "." . $idFields[$i];
+            }
+
+            $query = "SELECT " . $selectString . " FROM " . $tables[0] . " " . $joinString . " WHERE " . $conditionsString;
+            if ($order) {
+                $query .= " ORDER BY " . $order;
+            }
+            $this->query($query);
+            return $this->single();
+        }
+
+        public function get_rows_join_multi($tables, $idFields, $conditions = null, $select = null, $order = null, $limit = null, $joinType = "INNER"): ?array
+        {
+            if (!is_array($tables) || !is_array($idFields)) {
+                $this->error = "The first two parameters MUST be arrays!";
+                return null;
+            }
+            if (count($tables) !== count($idFields) || count($tables) < 2) {
+                $this->error = "The two arrays need to be of equal length and not empty!";
+                return null;
             }
             if (!$order) {
-                $order = "{$tables[0]}.id ASC";
+                $order = $tables[0] . ".id ASC";
             }
-            $selectString = $this->make_select($select);
+            $selectString = $select ? $this->make_select($select) : $tables[0] . ".*";
             $conditionsString = $this->make_conditions($conditions);
             $joinString = "";
-            for ($i = 1; $i < count ($tables); $i++) {
-                $joinString .= "{$joinType} JOIN `{$tables[$i]}` ON `{$tables[0]}`.`{$idFields[0]}` = `{$tables[$i]}`.`{$idFields[$i]}` ";
+            for ($i = 1; $i < count($tables); $i++) {
+                $joinString .= $joinType . " JOIN " . $tables[$i] . " ON " . $tables[0] . "." . $idFields[0] . " = " . $tables[$i] . "." . $idFields[$i];
             }
-            $query = "SELECT {$selectString} FROM {$tables[0]} {$joinString} WHERE {$conditionsString} ";
-            if ($order) $query .= "ORDER BY {$order} ";
-            if ($limit) $query .= "LIMIT {$limit} ";
+            $query = "SELECT " . $selectString . " FROM " . $tables[0] . " " . $joinString . " WHERE " . $conditionsString;
+            if ($order) {
+                $query .= " ORDER BY " . $order;
+            }
+            if ($limit) {
+                $query .= " LIMIT " . $limit;
+            }
             $this->query($query);
             return $this->resultset();
         }
 
-        public function get_ids($table, $order = null, $conditions = null, $limit = null, $field = "id"): array
+        public function get_ids($table, $order = null, $conditions = null, $limit = null, $column = "id"): array
         {
             $conditionsString = $this->make_conditions($conditions);
-            $query = "SELECT {$field} FROM {$table} WHERE {$conditionsString} ";
-            if ($order) $query .= "ORDER BY {$order} ";
-            if ($limit) $query .= "LIMIT {$limit} ";
+            $query = "SELECT " . $column . " FROM " . $table . " WHERE " . $conditionsString;
+            if ($order) {
+                $query .= " ORDER BY " . $order;
+            }
+            if ($limit) {
+                $query .= " LIMIT " . $limit;
+            }
             $this->query($query);
-            return ($this->resultset(PDO::FETCH_COLUMN));
+            return $this->resultset(PDO::FETCH_COLUMN);
         }
 
         private function bindArrayValues($array): void
         {
             foreach ($array as $key => $value) {
-                if (is_array ($key) || is_array ($value)) {
-                    $this->error = "Array forsøgt sendt til bind!";
+                if (is_array($key) || is_array($value)) {
+                    $this->error = "Error: Array delivered to bind!";
                 }
-                $this->bind(":$key",$value);
+                $this->bind(":$key", $value);
             }
         }
 
         public function lastid(): int
         {
+            // Alias for lastInsertId
             return $this->lastInsertId();
         }
 
-        private function make_conditions($conditions): string {
+        private function make_conditions($conditions): string
+        {
             if (!$conditions) {
                 $conditionsString = "1";
             } else {
-                $conditionsString = is_array ($conditions)
-                    ? implode (" AND ", $conditions)
+                $conditionsString = is_array($conditions)
+                    ? implode(" AND ", $conditions)
                     : $conditions;
             }
             return $conditionsString;
         }
 
-        function make_select($select) {
-            return is_array ($select) ? implode (", ", $select) : $select;
+        function make_select($select)
+        {
+            return is_array($select) ? implode(", ", $select) : $select;
         }
 
         public function bind($param, $value, $type = null): void
@@ -622,15 +725,18 @@ JOINSTRING;
             return false;
         }
 
-        private function resultset($modifier = PDO::FETCH_ASSOC): array {
+        private function resultset($modifier = PDO::FETCH_ASSOC): array
+        {
             $this->execute();
             return $this->stmt->fetchAll($modifier);
         }
 
-        private function single($modifier = PDO::FETCH_ASSOC) {
+        private function single($modifier = PDO::FETCH_ASSOC)
+        {
             $this->execute();
-            return $this->stmt->fetch($modifier );
+            return $this->stmt->fetch($modifier);
         }
+
         public function lastInsertId(): int
         {
             return $this->dbh->lastInsertId();

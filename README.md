@@ -23,9 +23,13 @@ Go to /admin/ and log in with flexnet / flexnet
 
 ## Using
 - Bootstrap 5
-- PHP (tested on v8.0.8)
-- MySQL (tested on v. 5.7.34)
+- PHP (tested on v8.1)
+- MySQL (tested on v. 5.7.34 + v. 8)
 - FontAwesome, 6.0.0-beta3
-- jQuery, 3.6.0
+- jQuery, 3.7.1
 - Toastr
 
+Create your own FontAwesome kit here:
+[https://fontawesome.com/sessions/sign-in?next=%2Fkits](https://fontawesome.com/sessions/sign-in?next=%2Fkits)
+
+and replace the fontawesome links in the pages

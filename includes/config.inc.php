@@ -1,5 +1,5 @@
 <?php
-/* CONFIG-FIL */
+/* CONFIG-FILE */
 
 if(!defined("CONFIG")) {
 	define("CONFIG", true);
@@ -36,7 +36,7 @@ if(!defined("CONFIG")) {
 
 	// Check user rights?
 	if (!array_intersect(ADMIN_USER_ROLES, ACCESS_ROLES)) {
-		header("Location: {$ikkeLoggetIndUrl}&to");
+		header("Location: {$notLoggedInUrl}");
 	}
 }
 ?>

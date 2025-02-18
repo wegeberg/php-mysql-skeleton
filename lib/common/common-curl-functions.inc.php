@@ -1,9 +1,10 @@
 <?php
-if (!defined("CURL_FUNCTIONS_INCLUDED")) {
-    define("CURL_FUNCTIONS_INCLUDED", true);
+if (!defined ("CURL_FUNCTIONS_INCLUDED")) {
+    define ("CURL_FUNCTIONS_INCLUDED", true);
 
-    if (!function_exists("curlPost")) {
-        function curlPost($url, $data, $headers = null) {
+    if (!function_exists ("curlPost")) {
+        function curlPost($url, $data, $headers = null): array
+        {
             // https://blog.cpming.top/p/php-curl-post-multipart
             $ch = curl_init();
             curl_setopt_array($ch, array(
@@ -33,9 +34,10 @@ if (!defined("CURL_FUNCTIONS_INCLUDED")) {
             ];
         }
     }
-    
-    if (!function_exists("curlGet")) {
-        function curlGet($url, $data = null, $headers = null) {
+
+    if (!function_exists ("curlGet")) {
+        function curlGet($url, $data = null, $headers = null): array
+        {
             // https://blog.cpming.top/p/php-curl-post-multipart
             $geturl = $data ? "{$url}?".http_build_query($data) : $url;
             $ch = curl_init();
@@ -55,19 +57,17 @@ if (!defined("CURL_FUNCTIONS_INCLUDED")) {
             $error =  curl_error($ch);
             curl_close($ch);
             if (!$response || $status > 399) {
-                $data = json_decode($response, true);
+                $data = json_decode ($response, true);
                 return [
                     "data"  	=> null,
                     "info"		=> $info,
                     "status"	=> $status,
-                    "error" 	=> isset($data["message"]) 
-                        ?	$data["message"] 
-                        :	"{$errno} {$error}",
+                    "error" 	=> $data["message"] ?? "{$errno} {$error}",
                     "geturl"	=> $geturl
                 ];
             }
             return [
-                "data"  	=> json_decode($response, true),
+                "data"  	=> json_decode ($response, true),
                 "error" 	=> null,
                 "info"		=> $info,
                 "status"	=> $status,
@@ -75,5 +75,5 @@ if (!defined("CURL_FUNCTIONS_INCLUDED")) {
             ];
         }
     }
-    
+
 }
